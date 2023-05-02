@@ -1,5 +1,4 @@
 use ethers::types::U256;
-use async_trait::async_trait;
 use std::collections::HashMap;
 
 pub type TokenBalances = HashMap<String, U256>;
@@ -26,24 +25,38 @@ pub trait EthMarket {
 
     fn get_tokens_in(&self, token_in: &str, token_out: &str, amount_out: U256) -> U256;
 
-    async fn sell_tokens_to_next_market(&self, token_in: &str, amount_in: U256, eth_market: &dyn EthMarket) -> MultipleCallData;
+    async fn sell_tokens_to_next_market(
+        &self,
+        token_in: &str,
+        amount_in: U256,
+        eth_market: &dyn EthMarket
+    ) -> Result<MultipleCallData, Box<dyn std::error::Error>>;
 
-    async fn sell_tokens(&self, token_in: &str, amount_in: U256, recipient: &str) -> String;
+    async fn sell_tokens(
+        &self,
+        token_in: &str,
+        amount_in: U256,
+        recipient: &str
+    ) -> Result<String, Box<dyn std::error::Error>>;
 
     fn receive_directly(&self, token_address: &str) -> bool;
 
-    async fn prepare_receive(&self, token_address: &str, amount_in: U256) -> Vec<CallDetails>;
+    async fn prepare_receive(
+        &self,
+        token_address: &str,
+        amount_in: U256
+    ) -> Result<Vec<CallDetails>, Box<dyn std::error::Error>>;
 }
 
-pub struct ExampleEthMarket {
+pub struct EthMarketImpl {
     tokens: Vec<String>,
     market_address: String,
     protocol: String,
 }
 
-impl ExampleEthMarket {
+impl EthMarketImpl {
     pub fn new(marketAddress: String, tokens: Vec<String>, protocol: String) -> Self {
-        Self {
+        EthMarketImpl {
             tokens,
             market_address,
             protocol,
@@ -51,8 +64,7 @@ impl ExampleEthMarket {
     }
 }
 
-#[async_trait]
-impl EthMarket for ExampleEthMarket {
+impl EthMarket for EthMarketImpl {
     fn tokens(&self) -> &[String] {
         &self.tokens
     }
@@ -65,5 +77,5 @@ impl EthMarket for ExampleEthMarket {
         &self.protocol
     }
 
-    // Implement the other methods as needed for your use case.
+    // Implement other methods here...
 }
