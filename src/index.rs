@@ -1,121 +1,63 @@
-use flashbots_ethers_provider_bundle::FlashbotsBundleProvider;
-use ethers::prelude::{ Contract, Provider, Wallet };
+use dotenv::dotenv;
 use std::env;
-use std::error::Error;
-use reqwest::Client;
-use tokio::task;
-
-use crate::abi::BUNDLE_EXECUTOR_ABI;
-use crate::uniswappy_v2_eth_pair::UniswappyV2EthPair;
-use crate::addresses::FACTORY_ADDRESSES;
-use crate::arbitrage::Arbitrage;
-use crate::utils::get_default_relay_signing_key;
-
-const ETHEREUM_RPC_URL: &str = "http://127.0.0.1:8545";
-const MINER_REWARD_PERCENTAGE: i32 = 80;
+use ethers::core::{rand::thread_rng, types::transaction::eip2718::TypedTransaction};
+use ethers::prelude::*;
+use ethers::core::k256::SecretKey;
+use ethers_flashbots::*;
+use eyre::Result;
+use std::convert::TryFrom;
+use url::Url;
+use ethers_signers::{LocalWallet, Signer};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let private_key = env::var("PRIVATE_KEY").unwrap_or("".to_string());
-    let bundle_executor_address = env::var("BUNDLE_EXECUTOR_ADDRESS").unwrap_or("".to_string());
-    let flashbots_relay_signing_key = env
-        ::var("FLASHBOTS_RELAY_SIGNING_KEY")
-        .unwrap_or(get_default_relay_signing_key());
+pub async fn first_fn() -> Result<()> {
+    dotenv().ok(); 
+    let provider = Provider::<Http>::try_from("https://mainnet.eth.aragon.network")?;
 
-    let healthcheck_url = env::var("HEALTHCHECK_URL").unwrap_or("".to_string());
+    let _bundle_signer = env::var("FLASHBOTS_IDENTIFIER").clone().unwrap();
+    let bundle_signer = _bundle_signer.parse::<LocalWallet>();
 
-    if private_key.is_empty() {
-        eprintln!("Must provide PRIVATE_KEY environment variable");
-        std::process::exit(1);
-    }
+    let _wallet = env::var("FLASHBOTS_SIGNER").clone().unwrap();
+    let wallet = _wallet.parse::<LocalWallet>();
 
-    if bundle_executor_address.is_empty() {
-        eprintln!(
-            "Must provide BUNDLE_EXECUTOR_ADDRESS environment variable. Please see README.md"
-        );
-        std::process::exit(1);
-    }
+    println!("Hello, world!");
+    println!("Bundle Signer: {}", _bundle_signer);
+    println!("Wallet: {}", _wallet);
 
-    if flashbots_relay_signing_key.is_empty() {
-        eprintln!(
-            "Must provide FLASHBOTS_RELAY_SIGNING_KEY. Please see https://github.com/flashbots/pm/blob/main/guides/searcher-onboarding.md"
-        );
-        std::process::exit(1);
-    }
-
-    let provider = Provider::connect(ETHEREUM_RPC_URL).await?;
-    let arbitrage_signing_wallet = Wallet::from_private_key(&private_key)?;
-    let flashbots_relay_signing_wallet = Wallet::from_private_key(&flashbots_relay_signing_key)?;
-
-    println!("Searcher Wallet Address: {}", arbitrage_signing_wallet.address());
-    println!(
-        "Flashbots Relay Signing Wallet Address: {}",
-        flashbots_relay_signing_wallet.address()
+    let client = SignerMiddleware::new(
+        FlashbotsMiddleware::new(
+            provider,
+            Url::parse("https://relay.flashbots.net")?,
+            bundle_signer.unwrap(),
+        ),
+        wallet.unwrap(),
     );
 
-    let flashbots_provider = FlashbotsBundleProvider::new(
-        provider.clone(),
-        flashbots_relay_signing_wallet
-    ).await?;
-    let arbitrage = Arbitrage::new(
-        arbitrage_signing_wallet,
-        flashbots_provider,
-        Contract::new(
-            bundle_executor_address.parse()?,
-            BUNDLE_EXECUTOR_ABI.clone(),
-            provider.clone()
-        )
-    );
+    //println!("{}", client);
 
-    let markets = UniswappyV2EthPair::get_uniswap_markets_by_token(
-        provider.clone(),
-        &FACTORY_ADDRESSES
-    ).await?;
+    // get last block number
+    let block_number = client.get_block_number().await?;
+    println!("Block Number: {}", block_number);
 
-    let _ = task::spawn(async move {
-        while let Some(event) = provider.watch_blocks().await.unwrap().next().await {
-            let block_number = event.unwrap().number.unwrap().as_u64();
-            let _ = UniswappyV2EthPair::update_reserves(&provider, &markets.all_market_pairs).await;
+    // Build a custom bundle that pays 0x0000000000000000000000000000000000000000
+    let tx = {
+        let mut inner: TypedTransaction = TransactionRequest::pay(Address::zero(), 100).into();
+        client.fill_transaction(&mut inner, None).await?;
+        inner
+    };
+    
 
-            match arbitrage.evaluate_markets(&markets.markets_by_token).await {
-                Ok(best_crossed_markets) => {
-                    if best_crossed_markets.is_empty() {
-                        println!("No crossed markets");
-                        continue;
-                    }
+    let signature = client.signer().sign_transaction(&tx).await?;
+    //println!("signature: {}", signature);
+    let bundle = BundleRequest::new()
+        .push_transaction(tx.rlp_signed(&signature))
+        .set_block(block_number + 1)
+        .set_simulation_block(block_number)
+        .set_simulation_timestamp(0);
 
-                    for crossed_market in &best_crossed_markets {
-                        Arbitrage::print_crossed_market(crossed_market);
-                    }
+    // Simulate it
+    let simulated_bundle = client.inner().simulate_bundle(&bundle).await?;
+    //println!("Simulated bundle: {:?}", simulated_bundle);
 
-                    if
-                        let Err(e) = arbitrage.take_crossed_markets(
-                            &best_crossed_markets,
-                            block_number,
-                            MINER_REWARD_PERCENTAGE
-                        ).await
-                    {
-                        eprintln!("Error taking crossed markets: {}", e);
-                    }
-
-                    if !healthcheck_url.is_empty() {
-                        if let Err(e) = healthcheck(&healthcheck_url).await {
-                            eprintln!("Healthcheck error: {}", e);
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Error evaluating markets: {}", e);
-                }
-            }
-        }
-    }).await;
-
-    Ok(())
-}
-
-async fn healthcheck(healthcheck_url: &str) -> Result<(), Box<dyn Error>> {
-    let client = Client::new();
-    let _ = client.get(healthcheck_url).send().await?;
     Ok(())
 }
