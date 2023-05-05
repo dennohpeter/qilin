@@ -1,6 +1,8 @@
 use dotenv::dotenv;
 use std::env;
-use ethers::core::{rand::thread_rng, types::TransactionRequest, types::transaction::eip2718::TypedTransaction};
+use ethers::core::{
+    rand::thread_rng, 
+    types::TransactionRequest, types::transaction::eip2718::TypedTransaction};
 use ethers::prelude::*;
 use ethers::providers::{Provider, Ws};
 use ethers::core::k256::SecretKey;
@@ -19,8 +21,20 @@ pub async fn first_fn() -> Result<()> {
     let _dai_address = env::var("DAI_ADDRESS").clone().unwrap();
     let _usdc_address = env::var("USDC_ADDRESS").clone().unwrap();
     let _usdt_address = env::var("USDT_ADDRESS").clone().unwrap();
+    let _weth_address = env::var("WETH_ADDRESS").clone().unwrap();
+    let _null_address = env::var("NULL_ADDRESS").clone().unwrap();
+    /*
+    What we care about:
+    - Pool transfers to/from router, from watching pool
+    - Token transfers to/from router, from watching token
+    - Burn when applicable, from watching token
+    - Rebase when applicable, from watching token
+    - Sync when applicable, from watching token
+    - Technically we need to figure out how to deal with the math but w/e for now
 
-    // for ETH address need to check current request and pool via weth9 function
+    */
+
+    // for WETH address need to check current request and pool via weth9 function
     // from router contract
     let http_provider_sepolia = Provider::try_from(format!("https://sepolia.infura.io/v3/{}", _infura_key))?;
     let http_provider = Provider::try_from(format!("https://mainnet.infura.io/v3/{}", _infura_key))?;
@@ -42,14 +56,14 @@ pub async fn first_fn() -> Result<()> {
     println!("Bundle Signer: {}", _bundle_signer);
     println!("Wallet: {}", _wallet);
 
-    let client_sepolia = SignerMiddleware::new(
-        FlashbotsMiddleware::new(
-            http_provider,
-            Url::parse("https://relay-sepolia.flashbots.net")?,
-            bundle_signer.unwrap(),
-        ),
-        wallet,
-    );
+    // let client_sepolia = SignerMiddleware::new(
+    //     FlashbotsMiddleware::new(
+    //         http_provider_sepolia,
+    //         Url::parse("https://relay-sepolia.flashbots.net")?,
+    //         bundle_signer.unwrap(),
+    //     ),
+    //     wallet,
+    // );
 
     let client = SignerMiddleware::new(
         FlashbotsMiddleware::new(
@@ -69,16 +83,37 @@ pub async fn first_fn() -> Result<()> {
     let mut stream = ws_provider.subscribe_pending_txs().await?;
 
     
+    println!(
+        "{0: <42} | {1: <42} | {2: <20} | {3: <10} | {4: <66} | {5: <66}",
+        "to", 
+        "from", 
+        "value", 
+        "gas", 
+        "hash", 
+        "calldata"
+    );
     //let mut stream = ws_provider.pending_bundle(msg).await?;
     while let Some(tx_hash) = stream.next().await {
         let mut msg = ws_provider.get_transaction(tx_hash).await?;
+        let data = msg.clone().unwrap_or(Transaction::default());
+        // println!(
+        //     // "Timestamp: {:?}, block number: {} -> {:?}", 
+        //     // block.timestamp,
+        //     // block.number.unwrap(),
+        //     // block.hash.unwrap()
+        //     // msg
+        //     "{:?}", data.gas
+        // );
+        let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
+        let _from = data.from;
         println!(
-            // "Timestamp: {:?}, block number: {} -> {:?}", 
-            // block.timestamp,
-            // block.number.unwrap(),
-            // block.hash.unwrap()
-            // msg
-            "{:?}", msg
+            "{:#x} | {:#x} | {2: <20} | {3: >10} | {4: <66} | {5: <66}", 
+            _to, 
+            _from,
+            data.value, 
+            data.gas, 
+            data.hash, 
+            data.input
         );
 
         // let tx: TypedTransaction = TransactionRequest::pay("vitalik.eth", 1).into();
