@@ -32,6 +32,8 @@ pub async fn first_fn() -> Result<()> {
     - Sync when applicable, from watching token
     - Technically we need to figure out how to deal with the math but w/e for now
 
+
+    configure our subscription(s)
     */
 
     // for WETH address need to check current request and pool via weth9 function
@@ -56,6 +58,7 @@ pub async fn first_fn() -> Result<()> {
     println!("Bundle Signer: {}", _bundle_signer);
     println!("Wallet: {}", _wallet);
 
+    // change commented sections to config file options
     // let client_sepolia = SignerMiddleware::new(
     //     FlashbotsMiddleware::new(
     //         http_provider_sepolia,
@@ -96,25 +99,19 @@ pub async fn first_fn() -> Result<()> {
     while let Some(tx_hash) = stream.next().await {
         let mut msg = ws_provider.get_transaction(tx_hash).await?;
         let data = msg.clone().unwrap_or(Transaction::default());
+
+        // let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
+        // let _from = data.from;
         // println!(
-        //     // "Timestamp: {:?}, block number: {} -> {:?}", 
-        //     // block.timestamp,
-        //     // block.number.unwrap(),
-        //     // block.hash.unwrap()
-        //     // msg
-        //     "{:?}", data.gas
+        //     "{:#x} | {:#x} | {2: <20} | {3: >10} | {4: <66} | {5: <66}", 
+        //     _to, 
+        //     _from,
+        //     data.value, 
+        //     data.gas, 
+        //     data.hash, 
+        //     data.input
         // );
-        let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
-        let _from = data.from;
-        println!(
-            "{:#x} | {:#x} | {2: <20} | {3: >10} | {4: <66} | {5: <66}", 
-            _to, 
-            _from,
-            data.value, 
-            data.gas, 
-            data.hash, 
-            data.input
-        );
+        println!("{:?}", data);
 
         // let tx: TypedTransaction = TransactionRequest::pay("vitalik.eth", 1).into();
         // let signature = client.signer().sign_transaction(&tx).await?;
@@ -128,29 +125,13 @@ pub async fn first_fn() -> Result<()> {
         //sending bundle
         // let pending_bundle = client.inner().send_bundle(&bundle).await?;
     }
-    /*
-Some(Transaction { 
-    hash: 0x69be97c0cda4d872ee5868bfcd7671a8acb915a4f7a7edba7b76f4d08dad7c08, 
-    nonce: 8848, 
-    block_hash: None, 
-    block_number: None, 
-    transaction_index: None, 
-    from: 0x007ab5199b6c57f7aa51bc3d0604a43505501a0c, 
-    to: Some(0x0328adcc26d7ee6a71843bdbf716b7b2b0b4ffa3), 
-    value: 1000000000000000, 
-    gas_price: Some(1500000014), 
-    gas: 21000, 
-    input: Bytes(0x), 
-    v: 0, 
-    r: 108853379393575403114648895570501267920446440064797523802631923820109603901592, 
-    s: 54432401851499039607746644666317390761051500462096442063488962792652443980717, 
-    transaction_type: Some(2), 
-    access_list: Some(AccessList([])), 
-    max_priority_fee_per_gas: Some(1500000000), 
-    max_fee_per_gas: Some(1500000014), 
-    chain_id: Some(11155111), 
-    other: OtherFields { inner: {} } })
+    
+    
 
+     Ok(())
+}
+
+/*
 Some(Transaction { 
     hash: 0x736a6a6abea12465de1cc4d73e9d0633203d30170aadf826a77c3f6d154d7732, 
     nonce: 21000, 
@@ -168,9 +149,103 @@ Some(Transaction {
     // monitor works
     // monitor specific address
     // parse the data to only the functions we want ... bytes4(keccak256(function_name(paramenters)))
-    */
+*/
+// Some(Transaction { 
+//     hash: 0x69be97c0cda4d872ee5868bfcd7671a8acb915a4f7a7edba7b76f4d08dad7c08, 
+//     nonce: 8848, 
+//     block_hash: None, 
+//     block_number: None, 
+//     transaction_index: None, 
+//     from: 0x007ab5199b6c57f7aa51bc3d0604a43505501a0c, 
+//     to: Some(0x0328adcc26d7ee6a71843bdbf716b7b2b0b4ffa3), 
+//     value: 1000000000000000, 
+//     gas_price: Some(1500000014), 
+//     gas: 21000, 
+//     input: Bytes(0x), 
+//     v: 0, 
+//     r: 108853379393575403114648895570501267920446440064797523802631923820109603901592, 
+//     s: 54432401851499039607746644666317390761051500462096442063488962792652443980717, 
+//     transaction_type: Some(2), 
+//     access_list: Some(AccessList([])), 
+//     max_priority_fee_per_gas: Some(1500000000), 
+//     max_fee_per_gas: Some(1500000014), 
+//     chain_id: Some(11155111), 
+//     other: OtherFields { inner: {} } })
 
 
+// filter out 'to' targeted addresses we want
 
-    Ok(())
-}
+/*
+- UniV2:WETH/USDT & UniV2:WETH/USDC & UniV2:USDT/USDC
+- Pool A          & Pool B
+T0 - 10 USDT           10 USDC
+T1 - weth:10 USDT      11 USDC
+
+
+Example:
+- Assumption: Only V2
+    - Token, A, B, and C
+    - Pools: A/B, A/C, B/C
+T0 - swap() -> A/C: A => C
+        result - A($): up; C($): down
+
+T1 - B => A, A => C, C => B
+
+- Assumption: V2 and V3
+    - Token A and B
+    - Pools: A/B(v2), A/B(V3)
+
+T0 - swap() -> A/B(V2): A => B
+        result: A($): down; B($): up
+
+T1 - Sell A buy B on V3 => sell B  buy A on V2 
+
+////////////////////////////////////////////////////////////////////////////////
+
+1) determine what pairs we care about on uniswapv2/v3
+    - WETH/USDT
+
+2) fine addresses to monitor
+    - find v2 router and v3 router addresses 
+    - find WETH and USDT addresses
+    - WETH/USDT v2 pool address, and WETH/USDT v3 pool address
+
+3) monitor the mempool to look for tx that interact with v2 and v3 routers
+    - get txHash from websocket
+    - using txHash to req transaction data from Infura websocket
+    - filter out everything but the tx that interact with v2 and v3 routers
+
+4) once we found the tx that interact with v2 and v3 routers from step (3), 
+    check the tx's calldata to make sure it matches swap() selector
+    - find the bytes for swap() selectors on v2 and v3
+        - v2: oxasbsaadsf, v3: 0xasdfasdf
+    - match tx calldata found from step (3) to match swap() selectors on v2 and v3
+
+5) determine the tokens-in and tokens-out part of the calldata
+    - parse the calldata to find the portion that represents in-token and out-token
+
+
+6) observe event(`Transfer`) then query pool reserves, then update the pool reserve
+    - subscribe_event_by_type
+        - event definition: `Transfer` event
+    - query the reserve pool and update the local pool reserve variable
+
+
+7) using token-in & token-out data, determine the effect on the pool reserves
+    - simulate the effect if the swap goes through and get the ending pool state
+        - for V2 and V3  
+    
+
+    Resource: UniV3 Math: https://crates.io/crates/uniswap_v3_math
+
+
+8) bundle submission
+    - TBD
+
+Other stuff:
+https://www.gakonst.com/ethers-rs/subscriptions/events-by-type.html
+why use Arc, and is it nessicary
+let client = get_client().await;
+let client = Arc::new(client);
+
+*/
