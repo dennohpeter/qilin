@@ -1,8 +1,14 @@
 use dotenv::dotenv;
 use std::env;
+use std::str;
+use std::collections::HashMap;
 use ethers::core::{
     rand::thread_rng, 
-    types::TransactionRequest, types::transaction::eip2718::TypedTransaction};
+    types::TransactionRequest, 
+    types::transaction::eip2718::TypedTransaction
+};
+use ethers_core::types::Bytes;
+use ethers_core::utils::hex::FromHex;
 use ethers::prelude::*;
 use ethers::providers::{Provider, Ws};
 use ethers::core::k256::SecretKey;
@@ -27,6 +33,60 @@ pub async fn first_fn() -> Result<()> {
     let uniswap_v3_router_2 = env::var("UNISWAP_V3_ROUTER_2").clone().unwrap().parse::<H160>()?;
     let uniswap_v2_router_1 = env::var("UNISWAP_V2_ROUTER_1").clone().unwrap().parse::<H160>()?;
     let uniswap_v2_router_2 = env::var("UNISWAP_V2_ROUTER_2").clone().unwrap().parse::<H160>()?;
+
+    // V3 ROUTER1 SELECTORS TO WATCH
+    let selector_v3_r1 = vec![
+        "ac9650d8"  // "multicall(bytes[])"
+    ];
+    let selectors_v3_r1: Vec<Bytes> = selector_v3_r1
+        .iter()
+        .map(|s| hex_to_bytes(s).expect("Invalid selector"))
+        .collect();
+
+    // V3 ROUTER2 SELECTORS TO WATCH
+    let selector_v3_r2 = vec![
+        "1f0464d1", // "multicall(bytes32,bytes[])"
+        "5ae401dc", // "multicall(uint256,bytes[])"
+        "ac9650d8", // "multicall(bytes[])"
+        "472b43f3", // "swapExactTokensForTokens(uint256,uint256,address[],address)"
+        "42712a67"  // "swapTokensForExactTokens(uint256,uint256,address[],address)"
+    ];
+    let selectors_v3_r2: Vec<Bytes> = selector_v3_r2
+        .iter()
+        .map(|s| hex_to_bytes(s).expect("Invalid selector"))
+        .collect();
+
+    // V2 ROUTER01 SELECTORS TO WATCH
+    let selector_v2_r1 = vec![
+        "fb3bdb41", // "swapETHForExactTokens(uint256,address[],address,uint256)",
+        "7ff36ab5", // "swapExactETHForTokens(uint256,address[],address,uint256)",
+        "18cbafe5", // "swapExactTokensForETH(uint256,uint256,address[],address,uint256)",
+        "38ed1739", // "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+        "4a25d94a", // "swapTokensForExactETH(uint256,uint256,address[],address,uint256)",
+        "8803dbee"  // "swapTokensForExactTokens(uint256,uint256,address[],address,uint256)"
+    ];
+    let selectors_v2_r1: Vec<Bytes> = selector_v2_r1
+        .iter()
+        .map(|s| hex_to_bytes(s).expect("Invalid selector"))
+        .collect();
+
+    // V2 ROUTER02 SELECTORS TO WATCH
+    let selector_v1_r2 = vec![
+        "fb3bdb41", // "swapETHForExactTokens(uint256,address[],address,uint256)",
+        "7ff36ab5", // "swapExactETHForTokens(uint256,address[],address,uint256)",
+        "b6f9de95", // "swapExactETHForTokensSupportingFeeOnTransferTokens(uint256,address[],address,uint256)",
+        "18cbafe5", // "swapExactTokensForETH(uint256,uint256,address[],address,uint256)",
+        "791ac947", // "swapExactTokensForETHSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)",
+        "38ed1739", // "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+        "5c11d795", // "swapExactTokensForTokensSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)",
+        "4a25d94a", // "swapTokensForExactETH(uint256,uint256,address[],address,uint256)",
+        "8803dbee"  // "swapTokensForExactTokens(uint256,uint256,address[],address,uint256)"
+    ];
+    let selector_v1_r2: Vec<Bytes> = selector_v1_r2
+        .iter()
+        .map(|s| hex_to_bytes(s).expect("Invalid selector"))
+        .collect();
+    
     /*
     What we care about:
     - Pool transfers to/from router, from watching pool
@@ -90,39 +150,47 @@ pub async fn first_fn() -> Result<()> {
     let mut stream = ws_provider.subscribe_pending_txs().await?;
 
     
-    println!(
-        "{0: <42} | {1: <42} | {2: <20} | {3: <10} | {4: <66} | {5: <66}",
-        "to", 
-        "from", 
-        "value", 
-        "gas", 
-        "hash", 
-        "calldata"
-    );
+    // println!(
+    //     "{0: <42} | {1: <42} | {2: <20} | {3: <10} | {4: <66} | {5: <66}",
+    //     "to", 
+    //     "from", 
+    //     "value", 
+    //     "gas", 
+    //     "hash", 
+    //     "calldata"
+    // );
     //let mut stream = ws_provider.pending_bundle(msg).await?;
     while let Some(tx_hash) = stream.next().await {
         let mut msg = ws_provider.get_transaction(tx_hash).await?;
         let data = msg.clone().unwrap_or(Transaction::default());
         let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
 
-        if uniswap_v3_router_1.eq(&_to) | 
-            uniswap_v3_router_2.eq(&_to) | 
-            uniswap_v2_router_1.eq(&_to) | 
-            uniswap_v2_router_2.eq(&_to) 
-        { 
-            let calldata = data.input;
-            let (left, right) = calldata.split_at(8);
-            println!("left: {:?}", left.to_ascii_lowercase());
-            println!("{:?} {:?}", 
-                calldata.starts_with(b"5ae401dc") |
-                calldata.starts_with(b"38ed1739") |
-                calldata.starts_with(b"472b43f3") |
-                calldata.starts_with(b"5ae401dc") |
-                calldata.starts_with(b"5c11d795") |
-                calldata.starts_with(b"791ac947")
-             , calldata); 
-            //print_type_of(&calldata);
+        let routers = [
+            (&uniswap_v3_router_1, "Uniswap V3 Router 1"),
+            (&uniswap_v3_router_2, "Uniswap V3 Router 2"),
+            (&uniswap_v2_router_1, "Uniswap V2 Router 1"),
+            (&uniswap_v2_router_2, "Uniswap V2 Router 2"),
+        ];
+        
+        let mut router_selectors = HashMap::new();
+        router_selectors.insert(uniswap_v3_router_1, &selectors_v3_r1);
+        router_selectors.insert(uniswap_v3_router_2, &selectors_v3_r2);
+        router_selectors.insert(uniswap_v2_router_1, &selectors_v2_r1);
+        router_selectors.insert(uniswap_v2_router_2, &selector_v1_r2);
+        
+        if data.input.len() >= 4 {
+            if let Some((router_name, selectors)) = routers.iter().cloned().find_map(|(router, name)| router_selectors.get(router).map(|selectors| (name, selectors))) {
+                let first_four_bytes = &data.input[..4];
+                for (i, selector) in selectors.iter().enumerate() {
+                    let selector_slice = selector.as_ref();
+                    if first_four_bytes.eq(selector_slice) {
+                        println!("{}: Selector {} - {:?}", router_name, i, selector);
+                    }
+                }
+            }
         }
+
+
 
 
         // let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
@@ -158,6 +226,20 @@ pub async fn first_fn() -> Result<()> {
 
 fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())
+}
+
+fn hex_to_bytes(hex: &str) -> Result<Bytes, ()> {
+    let mut bytes = Vec::new();
+
+    for i in 0..(hex.len() / 2) {
+        let res = u8::from_str_radix(&hex[2 * i..2 * i + 2], 16);
+        match res {
+            Ok(v) => bytes.push(v),
+            Err(_) => return Err(()),
+        }
+    }
+
+    Ok(Bytes::from(bytes))
 }
 
 /*
@@ -286,11 +368,11 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
     - ✅ using txHash to req transaction data from Infura websocket
     - ✅ filter out everything but the tx that interact with v2 and v3 routers
 
-4) once we found the tx that interact with v2 and v3 routers from step (3), 
+4) ✅ once we found the tx that interact with v2 and v3 routers from step (3), 
     check the tx's calldata to make sure it matches swap() selector
-    - ✅find the bytes for swap() selectors on v2 and v3
+    - ✅ find the bytes for swap() selectors on v2 and v3
         - v2: oxasbsaadsf, v3: 0xasdfasdf
-    - match tx calldata found from step (3) to match swap() selectors on v2 and v3
+    - ✅ match tx calldata found from step (3) to match swap() selectors on v2 and v3
 
 5) determine the tokens-in and tokens-out part of the calldata
     - parse the calldata to find the portion that represents in-token and out-token
