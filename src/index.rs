@@ -204,11 +204,53 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
 
 1) determine what pairs we care about on uniswapv2/v3
     - WETH/USDT
+    -WETH address: https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
+    -USDT address: https://etherscan.io/address/0xdac17f958d2ee523a2206206994597c13d831ec7
 
 2) fine addresses to monitor
     - find v2 router and v3 router addresses 
     - find WETH and USDT addresses
     - WETH/USDT v2 pool address, and WETH/USDT v3 pool address
+    ROUTERS = {
+         "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F": {
+             "name": "Sushiswap: Router",
+             "uniswap_version": 2,
+             "factory_address": {2: "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac"},
+         },
+        "0xf164fC0Ec4E93095b804a4795bBe1e041497b92a": {
+            "name": "UniswapV2: Router",
+            "uniswap_version": 2,
+            "factory_address": {2: "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"},
+        },
+        "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D": {
+            "name": "UniswapV2: Router 2",
+            "uniswap_version": 2,
+            "factory_address": {2: "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"},
+        },
+        "0xE592427A0AEce92De3Edee1F18E0157C05861564": {
+            "name": "UniswapV3: Router",
+            "uniswap_version": 3,
+            "factory_address": {3: "0x1F98431c8aD98523631AE4a59f267346ea31F984"},
+        },
+        "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45": {
+            "name": "UniswapV3: Router 2",
+            "uniswap_version": 3,
+            "factory_address": {
+                2: "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f",
+                3: "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+            },
+        },
+    }
+
+    FACTORY_ADDRESSES = {
+        'uniswap_v2': '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
+        'uniswap_v3': '0x1F98431c8aD98523631AE4a59f267346ea31F984', 
+         'uniswap_v3_router2': {
+             '0x1F98431c8aD98523631AE4a59f267346ea31F984',
+             '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f'
+
+         }
+    }
 
 3) monitor the mempool to look for tx that interact with v2 and v3 routers
     - get txHash from websocket
@@ -242,10 +284,5 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
 8) bundle submission
     - TBD
 
-Other stuff:
-https://www.gakonst.com/ethers-rs/subscriptions/events-by-type.html
-why use Arc, and is it nessicary
-let client = get_client().await;
-let client = Arc::new(client);
 
 */
