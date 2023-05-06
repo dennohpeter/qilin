@@ -17,12 +17,16 @@ pub async fn first_fn() -> Result<()> {
     // data collection
     dotenv().ok(); 
     let _infura_key = env::var("INFURA_API_KEY").clone().unwrap();
-    let _uniswap_v3_address = env::var("V3FACTORY_ADDRESS").clone().unwrap();
     let _dai_address = env::var("DAI_ADDRESS").clone().unwrap();
     let _usdc_address = env::var("USDC_ADDRESS").clone().unwrap();
     let _usdt_address = env::var("USDT_ADDRESS").clone().unwrap();
     let _weth_address = env::var("WETH_ADDRESS").clone().unwrap();
     let _null_address = env::var("NULL_ADDRESS").clone().unwrap();
+
+    let uniswap_v3_router_1 = env::var("UNISWAP_V3_ROUTER_1").clone().unwrap().parse::<H160>()?;
+    let uniswap_v3_router_2 = env::var("UNISWAP_V3_ROUTER_2").clone().unwrap().parse::<H160>()?;
+    let uniswap_v2_router_1 = env::var("UNISWAP_V2_ROUTER_1").clone().unwrap().parse::<H160>()?;
+    let uniswap_v2_router_2 = env::var("UNISWAP_V2_ROUTER_2").clone().unwrap().parse::<H160>()?;
     /*
     What we care about:
     - Pool transfers to/from router, from watching pool
@@ -99,6 +103,13 @@ pub async fn first_fn() -> Result<()> {
     while let Some(tx_hash) = stream.next().await {
         let mut msg = ws_provider.get_transaction(tx_hash).await?;
         let data = msg.clone().unwrap_or(Transaction::default());
+        let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
+
+        if uniswap_v3_router_1.eq(&_to) { println!("{:?}", data); }
+        if uniswap_v3_router_2.eq(&_to) { println!("{:?}", data); }
+        if uniswap_v2_router_1.eq(&_to) { println!("{:?}", data); }
+        if uniswap_v2_router_2.eq(&_to) { println!("{:?}", data); }
+
 
         // let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
         // let _from = data.from;
@@ -111,7 +122,7 @@ pub async fn first_fn() -> Result<()> {
         //     data.hash, 
         //     data.input
         // );
-        println!("{:?}", data);
+        //println!("{:?}", data);
 
         // let tx: TypedTransaction = TransactionRequest::pay("vitalik.eth", 1).into();
         // let signature = client.signer().sign_transaction(&tx).await?;
@@ -269,7 +280,7 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
 
 6) observe event(`Transfer`) then query pool reserves, then update the pool reserve
     - subscribe_event_by_type
-        - event definition: `Transfer` event
+        - event definition: `event Transfer(address from, address to, unit256 value)` event
     - query the reserve pool and update the local pool reserve variable
 
 
@@ -285,4 +296,57 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
     - TBD
 
 
+
+V3 ROUNTER1/2 find selectors later
+
+V2 ROUTER01 SELECTORS TO WATCH
+{
+    "fb3bdb41": "swapETHForExactTokens(uint256,address[],address,uint256)",
+    "7ff36ab5": "swapExactETHForTokens(uint256,address[],address,uint256)",
+    "18cbafe5": "swapExactTokensForETH(uint256,uint256,address[],address,uint256)",
+    "38ed1739": "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+    "4a25d94a": "swapTokensForExactETH(uint256,uint256,address[],address,uint256)",
+    "8803dbee": "swapTokensForExactTokens(uint256,uint256,address[],address,uint256)"
+}
+
+V2 ROUTER02 SELECTORS TO WATCH
+{
+    "fb3bdb41": "swapETHForExactTokens(uint256,address[],address,uint256)",
+    "7ff36ab5": "swapExactETHForTokens(uint256,address[],address,uint256)",
+    "b6f9de95": "swapExactETHForTokensSupportingFeeOnTransferTokens(uint256,address[],address,uint256)",
+    "18cbafe5": "swapExactTokensForETH(uint256,uint256,address[],address,uint256)",
+    "791ac947": "swapExactTokensForETHSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)",
+    "38ed1739": "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+    "5c11d795": "swapExactTokensForTokensSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)",
+    "4a25d94a": "swapTokensForExactETH(uint256,uint256,address[],address,uint256)",
+    "8803dbee": "swapTokensForExactTokens(uint256,uint256,address[],address,uint256)"
+}
+
+
+
+
+
+
+
+Transaction { 
+    hash: 0x872be985300821f1c7c8d099b346276948bc84354a642ff3ecd774d602246b60, 
+    nonce: 41, 
+    block_hash: None, 
+    block_number: None, 
+    transaction_index: None, 
+    from: 0xba3b26154931be77bd44928e62eee66f34db2661, 
+    to: Some(0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45), 
+    value: 1000000000000000000, 
+    gas_price: Some(125000000000), 
+    gas: 304258, 
+    input: Bytes(0x5ae401dc000000000000000000000000000000000000000000000000000000006455e6bb00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000e4472b43f30000000000000000000000000000000000000000000000000de0b6b3a764000000000000000000000000000000000000000000012212eb87e90adba30bbcec270000000000000000000000000000000000000000000000000000000000000080000000000000000000000000ba3b26154931be77bd44928e62eee66f34db26610000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000378e1be15be6d6d1f23cfe7090b6a77660dbf14d00000000000000000000000000000000000000000000000000000000), 
+    v: 1, 
+    r: 101320250276167864627564976104790592610069124837894492495663500246216674461521, 
+    s: 36519862551638435947037849073949578028978097248470881776598175722020804060769, 
+    transaction_type: Some(2), 
+    access_list: Some(AccessList([])), 
+    max_priority_fee_per_gas: Some(12500000000), 
+    max_fee_per_gas: Some(125000000000), 
+    chain_id: Some(1), 
+    other: OtherFields { inner: {} } }
 */
