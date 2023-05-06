@@ -105,10 +105,24 @@ pub async fn first_fn() -> Result<()> {
         let data = msg.clone().unwrap_or(Transaction::default());
         let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
 
-        if uniswap_v3_router_1.eq(&_to) { println!("{:?}", data); }
-        if uniswap_v3_router_2.eq(&_to) { println!("{:?}", data); }
-        if uniswap_v2_router_1.eq(&_to) { println!("{:?}", data); }
-        if uniswap_v2_router_2.eq(&_to) { println!("{:?}", data); }
+        if uniswap_v3_router_1.eq(&_to) | 
+            uniswap_v3_router_2.eq(&_to) | 
+            uniswap_v2_router_1.eq(&_to) | 
+            uniswap_v2_router_2.eq(&_to) 
+        { 
+            let calldata = data.input;
+            let (left, right) = calldata.split_at(8);
+            println!("left: {:?}", left.to_ascii_lowercase());
+            println!("{:?} {:?}", 
+                calldata.starts_with(b"5ae401dc") |
+                calldata.starts_with(b"38ed1739") |
+                calldata.starts_with(b"472b43f3") |
+                calldata.starts_with(b"5ae401dc") |
+                calldata.starts_with(b"5c11d795") |
+                calldata.starts_with(b"791ac947")
+             , calldata); 
+            //print_type_of(&calldata);
+        }
 
 
         // let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
@@ -140,6 +154,10 @@ pub async fn first_fn() -> Result<()> {
     
 
      Ok(())
+}
+
+fn print_type_of<T>(_: &T) {
+    println!("{}", std::any::type_name::<T>())
 }
 
 /*
@@ -213,12 +231,12 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
 
 ////////////////////////////////////////////////////////////////////////////////
 
-1) determine what pairs we care about on uniswapv2/v3
+1) ✅ determine what pairs we care about on uniswapv2/v3
     - WETH/USDT
     -WETH address: https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
     -USDT address: https://etherscan.io/address/0xdac17f958d2ee523a2206206994597c13d831ec7
 
-2) fine addresses to monitor
+2) ✅ fine addresses to monitor
     - find v2 router and v3 router addresses 
     - find WETH and USDT addresses
     - WETH/USDT v2 pool address, and WETH/USDT v3 pool address
@@ -263,14 +281,14 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
          }
     }
 
-3) monitor the mempool to look for tx that interact with v2 and v3 routers
-    - get txHash from websocket
-    - using txHash to req transaction data from Infura websocket
-    - filter out everything but the tx that interact with v2 and v3 routers
+3) ✅ monitor the mempool to look for tx that interact with v2 and v3 routers
+    - ✅ get txHash from websocket
+    - ✅ using txHash to req transaction data from Infura websocket
+    - ✅ filter out everything but the tx that interact with v2 and v3 routers
 
 4) once we found the tx that interact with v2 and v3 routers from step (3), 
     check the tx's calldata to make sure it matches swap() selector
-    - find the bytes for swap() selectors on v2 and v3
+    - ✅find the bytes for swap() selectors on v2 and v3
         - v2: oxasbsaadsf, v3: 0xasdfasdf
     - match tx calldata found from step (3) to match swap() selectors on v2 and v3
 
@@ -296,8 +314,19 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
     - TBD
 
 
+V3 ROUTER1 SELECTORS TO WATCH
+{
+    "ac9650d8": "multicall(bytes[])"
+}
 
-V3 ROUNTER1/2 find selectors later
+V3 ROUTER2 SELECTORS TO WATCH
+{
+    "1f0464d1": "multicall(bytes32,bytes[])",
+    "5ae401dc": "multicall(uint256,bytes[])",
+    "ac9650d8": "multicall(bytes[])",
+    "472b43f3": "swapExactTokensForTokens(uint256,uint256,address[],address)",
+    "42712a67": "swapTokensForExactTokens(uint256,uint256,address[],address)"
+}
 
 V2 ROUTER01 SELECTORS TO WATCH
 {
