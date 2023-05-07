@@ -3,34 +3,50 @@ use std::str;
 use std::collections::HashMap;
 use ethers::core::{
     rand::thread_rng, 
-    types::{TransactionRequest, Bytes}, 
+    types::{TransactionRequest, Chain, Bytes}, 
     types::transaction::eip2718::TypedTransaction,
-    utils::hex::FromHex
+    utils::hex::FromHex,
 };
 use ethers::signers::{LocalWallet, Signer};
+use ethers::etherscan::Client;
 use ethers::prelude::*;
 use ethers::providers::{Provider, Ws};
 use ethers::core::k256::SecretKey;
+use ethers::solc::resolver::print;
 use ethers_flashbots::{BundleRequest, FlashbotsMiddleware};
 use eyre::Result;
 use std::convert::TryFrom;
 use url::Url;
 use crate::uni_math::v3;
+use crate::utils::constants::{
+    DAI_ADDRESS, 
+    USDC_ADDRESS, 
+    USDT_ADDRESS, 
+    WETH_ADDRESS, 
+    NULL_ADDRESS,
+    UNISWAP_V3_ROUTER_1,
+    UNISWAP_V3_ROUTER_2,
+    UNISWAP_V2_ROUTER_1,
+    UNISWAP_V2_ROUTER_2,
+};
+
+
 
 #[tokio::main]
 pub async fn init() -> Result<()> {
     // data collection
     let _infura_key = env::var("INFURA_API_KEY").clone().unwrap();
-    let _dai_address = env::var("DAI_ADDRESS").clone().unwrap();
-    let _usdc_address = env::var("USDC_ADDRESS").clone().unwrap();
-    let _usdt_address = env::var("USDT_ADDRESS").clone().unwrap();
-    let _weth_address = env::var("WETH_ADDRESS").clone().unwrap();
-    let _null_address = env::var("NULL_ADDRESS").clone().unwrap();
+    let _etherscan_key = env::var("ETHERSCAN_API_KEY").clone().unwrap();
+    let _dai_address = DAI_ADDRESS.parse::<H160>()?;
+    let _usdc_address = USDC_ADDRESS.parse::<H160>()?;
+    let _usdt_address = USDT_ADDRESS.parse::<H160>()?;
+    let _weth_address = WETH_ADDRESS.parse::<H160>()?;
+    let _null_address = NULL_ADDRESS.parse::<H160>()?;
 
-    let uniswap_v3_router_1 = env::var("UNISWAP_V3_ROUTER_1").clone().unwrap().parse::<H160>()?;
-    let uniswap_v3_router_2 = env::var("UNISWAP_V3_ROUTER_2").clone().unwrap().parse::<H160>()?;
-    let uniswap_v2_router_1 = env::var("UNISWAP_V2_ROUTER_1").clone().unwrap().parse::<H160>()?;
-    let uniswap_v2_router_2 = env::var("UNISWAP_V2_ROUTER_2").clone().unwrap().parse::<H160>()?;
+    let uniswap_v3_router_1 = UNISWAP_V3_ROUTER_1.parse::<H160>()?;
+    let uniswap_v3_router_2 = UNISWAP_V3_ROUTER_2.parse::<H160>()?;
+    let uniswap_v2_router_1 = UNISWAP_V2_ROUTER_1.parse::<H160>()?;
+    let uniswap_v2_router_2 = UNISWAP_V2_ROUTER_2.parse::<H160>()?;
 
     // V3 ROUTER1 SELECTORS TO WATCH
     let selector_v3_r1 = vec![
@@ -85,18 +101,6 @@ pub async fn init() -> Result<()> {
         .map(|s| hex_to_bytes(s).expect("Invalid selector"))
         .collect();
     
-    /*
-    What we care about:
-    - Pool transfers to/from router, from watching pool
-    - Token transfers to/from router, from watching token
-    - Burn when applicable, from watching token
-    - Rebase when applicable, from watching token
-    - Sync when applicable, from watching token
-    - Technically we need to figure out how to deal with the math but w/e for now
-
-
-    configure our subscription(s)
-    */
 
     // for WETH address need to check current request and pool via weth9 function
     // from router contract
@@ -138,21 +142,11 @@ pub async fn init() -> Result<()> {
 //    &apikey=YourApiKeyToken
     let mut stream = ws_provider.subscribe_pending_txs().await?;
 
-    
-    // println!(
-    //     "{0: <42} | {1: <42} | {2: <20} | {3: <10} | {4: <66} | {5: <66}",
-    //     "to", 
-    //     "from", 
-    //     "value", 
-    //     "gas", 
-    //     "hash", 
-    //     "calldata"
-    // );
     //let mut stream = ws_provider.pending_bundle(msg).await?;
     while let Some(tx_hash) = stream.next().await {
         let mut msg = ws_provider.get_transaction(tx_hash).await?;
         let data = msg.clone().unwrap_or(Transaction::default());
-        let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
+        let _to = data.to.clone().unwrap_or(_null_address);
 
         let routers = [
             (&uniswap_v3_router_1, "Uniswap V3 Router 1"),
@@ -179,21 +173,6 @@ pub async fn init() -> Result<()> {
             }
         }
 
-
-
-
-        // let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
-        // let _from = data.from;
-        // println!(
-        //     "{:#x} | {:#x} | {2: <20} | {3: >10} | {4: <66} | {5: <66}", 
-        //     _to, 
-        //     _from,
-        //     data.value, 
-        //     data.gas, 
-        //     data.hash, 
-        //     data.input
-        // );
-        //println!("{:?}", data);
 
         // let tx: TypedTransaction = TransactionRequest::pay("vitalik.eth", 1).into();
         // let signature = client.signer().sign_transaction(&tx).await?;

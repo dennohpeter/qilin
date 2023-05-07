@@ -1,5 +1,5 @@
 [package]
-name = "flashbots_test"
+name = "qi-bot"
 version = "0.1.0"
 edition = "2021"
 
