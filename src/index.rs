@@ -106,6 +106,8 @@ pub async fn init() -> Result<()> {
         let data = msg.clone().unwrap_or(Transaction::default());
         let _to = data.to.clone().unwrap_or(NULL_ADDRESS.parse::<H160>()?);
 
+        //ethers_core::types::bytes::Bytes
+
         let routers = [
             (UNISWAP_UNIVERSAL_ROUTER, "Uniswap Univeral Router"),
             (UNISWAP_V3_ROUTER_1, "Uniswap V3 Router 1"),
@@ -121,26 +123,32 @@ pub async fn init() -> Result<()> {
         router_selectors.insert(UNISWAP_V2_ROUTER_1, &SELECTOR_V2_R1[..]);
         router_selectors.insert(UNISWAP_V2_ROUTER_2, &SELECTOR_V2_R2[..]);
         
+        let mut router: &str = "";
+        let mut _matched = &false;
         if data.input.len() >= 4 {
-            for router in router_selectors.keys() {
-                if _to == router.parse::<H160>()? {
-                    //println!("router {:?}",router);
-                    //println!("selector was {:?}", bytes_to_string(&data.input[..4]));
-                    let selector = &bytes_to_string(&data.input[..4]);
-                    if let Some(s) = router_selectors.get(router) {
-                        if s.contains(&selector.as_str()) {
-                            println!("selector ({:?}) for {}", selector, router);
+            for _router in router_selectors.keys() {
+                if _to == _router.parse::<H160>()? {
+                    let mut _selector = &bytes_to_string(&data.input[..4]);
+                    if let Some(s) = router_selectors.get(_router) {
+                        if s.contains(&_selector.as_str()) {
+                            router = _router;
+                            _matched = &true;
                         }
                     }
                 }
             }
-            //             // we need to handle our logic for the selector calldata here
-            //             // 1) split data
-            //             // 2) convert the variables
-            //             //      - numbers to ethers::types::{I256, U256};
-            //             //      - addresses to H160
-            //             // 3) ignore multicall but console log
         }
+
+        if *_matched {
+            println!("Selector ({:?}) for Router ({:?})", bytes_to_string(&data.input[..4]), router);
+            _matched = &false;
+        }
+        // we need to handle our logic for the selector calldata here
+        // 1) split data
+        // 2) convert the variables
+        //      - numbers to ethers::types::{I256, U256};
+        //      - addresses to H160
+        // 3) ignore multicall but console log
 
 
 
