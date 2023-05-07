@@ -101,28 +101,27 @@ pub async fn init() -> Result<()> {
     //     "calldata"
     // );
     //let mut stream = ws_provider.pending_bundle(msg).await?;
+
+    let routers = [
+        (UNISWAP_UNIVERSAL_ROUTER, "Uniswap Univeral Router"),
+        (UNISWAP_V3_ROUTER_1, "Uniswap V3 Router 1"),
+        (UNISWAP_V3_ROUTER_2, "Uniswap V3 Router 2"),
+        (UNISWAP_V2_ROUTER_1, "Uniswap V2 Router 1"),
+        (UNISWAP_V2_ROUTER_2, "Uniswap V2 Router 2"),
+    ];
+    
+    let mut router_selectors = HashMap::new();
+    router_selectors.insert(UNISWAP_UNIVERSAL_ROUTER, &SELECTOR_UNI[..]);
+    router_selectors.insert(UNISWAP_V3_ROUTER_1, &SELECTOR_V3_R1[..]);
+    router_selectors.insert(UNISWAP_V3_ROUTER_2, &SELECTOR_V3_R2[..]);
+    router_selectors.insert(UNISWAP_V2_ROUTER_1, &SELECTOR_V2_R1[..]);
+    router_selectors.insert(UNISWAP_V2_ROUTER_2, &SELECTOR_V2_R2[..]);
+
     while let Some(tx_hash) = stream.next().await {
         let msg = ws_provider.get_transaction(tx_hash).await?;
         let data = msg.clone().unwrap_or(Transaction::default());
         let _to = data.to.clone().unwrap_or(NULL_ADDRESS.parse::<H160>()?);
 
-        //ethers_core::types::bytes::Bytes
-
-        let routers = [
-            (UNISWAP_UNIVERSAL_ROUTER, "Uniswap Univeral Router"),
-            (UNISWAP_V3_ROUTER_1, "Uniswap V3 Router 1"),
-            (UNISWAP_V3_ROUTER_2, "Uniswap V3 Router 2"),
-            (UNISWAP_V2_ROUTER_1, "Uniswap V2 Router 1"),
-            (UNISWAP_V2_ROUTER_2, "Uniswap V2 Router 2"),
-        ];
-        
-        let mut router_selectors = HashMap::new();
-        router_selectors.insert(UNISWAP_UNIVERSAL_ROUTER, &SELECTOR_UNI[..]);
-        router_selectors.insert(UNISWAP_V3_ROUTER_1, &SELECTOR_V3_R1[..]);
-        router_selectors.insert(UNISWAP_V3_ROUTER_2, &SELECTOR_V3_R2[..]);
-        router_selectors.insert(UNISWAP_V2_ROUTER_1, &SELECTOR_V2_R1[..]);
-        router_selectors.insert(UNISWAP_V2_ROUTER_2, &SELECTOR_V2_R2[..]);
-        
         let mut router: &str = "";
         let mut _matched = &false;
         if data.input.len() >= 4 {
@@ -142,6 +141,12 @@ pub async fn init() -> Result<()> {
         if *_matched {
             println!("Selector ({:?}) for Router ({:?})", bytes_to_string(&data.input[..4]), router);
             _matched = &false;
+            //ex (tracing rather then digesting)
+            //"4a25d94a", // "swapTokensForExactETH(uint256,uint256,address[],address,uint256)"
+            //bytes_to_string(&data.input[4..68])
+            //bytes_to_string(&data.input[68..132])
+            //bytes_to_string(&data.input[start..end]) // need to handle data size and memory size
+                                                // data can reorder
         }
         // we need to handle our logic for the selector calldata here
         // 1) split data
