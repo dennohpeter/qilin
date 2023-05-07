@@ -149,7 +149,9 @@ pub fn compute_swap_step(
 
 mod test {
     #[allow(unused)]
-    use crate::uni_math::v3::sqrt_price_math::{get_next_sqrt_price_from_input, get_next_sqrt_price_from_output};
+    use crate::uni_math::v3::sqrt_price_math::{
+        get_next_sqrt_price_from_input, get_next_sqrt_price_from_output,
+    };
     #[allow(unused)]
     use crate::uni_math::v3::swap_step::compute_swap_step;
     #[allow(unused)]

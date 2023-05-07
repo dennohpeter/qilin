@@ -42,3 +42,7 @@ eyre = "0.6.8"
 default = ['openssl']
 openssl = ['ethers/openssl', 'reqwest/default-tls']
 rustls = ['ethers/rustls', 'reqwest/rustls-tls']
+
+[[bin]]
+name="abigen"
+path="src/abigen.rs"

@@ -1,9 +1,9 @@
 use dotenv::dotenv;
-pub mod uni_math;
 pub mod index;
+pub mod uni_math;
 pub mod utils;
 
 fn main() {
-    dotenv(); 
+    dotenv();
     index::init();
 }

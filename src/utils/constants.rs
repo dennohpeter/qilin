@@ -13,7 +13,7 @@ pub const UNISWAP_UNIVERSAL_ROUTER: &str = "0xEf1c6E67703c7BD7107eed8303Fbe6EC25
 pub const SELECTOR_UNI: [&str; 3] = [
     "24856bc3", // "execute(bytes,bytes[])"
     "3593564c", // "execute(bytes,bytes[],uint256)"
-    "fa461e33"  // uniswapV3SwapCallback(int256,int256,bytes)
+    "fa461e33", // uniswapV3SwapCallback(int256,int256,bytes)
 ];
 
 pub const SELECTOR_V3_R1: [&str; 1] = ["ac9650d8"]; // "multicall(bytes[])"

@@ -1,5 +1,5 @@
 .env
 /target
-/cargo.lock
+/Cargo.lock
 /temp
 /examples

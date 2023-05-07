@@ -1,43 +1,29 @@
-use std::env;
-use std::str;
-use std::collections::HashMap;
+use crate::uni_math::v3;
+use crate::utils::constants::{
+    DAI_ADDRESS, NULL_ADDRESS, SELECTOR_UNI, SELECTOR_V2_R1, SELECTOR_V2_R2, SELECTOR_V3_R1,
+    SELECTOR_V3_R2, UNISWAP_UNIVERSAL_ROUTER, UNISWAP_V2_ROUTER_1, UNISWAP_V2_ROUTER_2,
+    UNISWAP_V3_ROUTER_1, UNISWAP_V3_ROUTER_2, USDC_ADDRESS, USDT_ADDRESS, WETH_ADDRESS,
+};
+use crate::utils::helpers::get_selectors;
+use ethers::core::k256::SecretKey;
 use ethers::core::{
-    rand::thread_rng, 
-    types::{TransactionRequest, Chain, Bytes}, 
+    rand::thread_rng,
     types::transaction::eip2718::TypedTransaction,
+    types::{Bytes, Chain, TransactionRequest},
     utils::hex::FromHex,
 };
-use ethers::signers::{LocalWallet, Signer};
 use ethers::etherscan::Client;
 use ethers::prelude::*;
 use ethers::providers::{Provider, Ws};
-use ethers::core::k256::SecretKey;
+use ethers::signers::{LocalWallet, Signer};
 use ethers::solc::resolver::print;
 use ethers_flashbots::{BundleRequest, FlashbotsMiddleware};
 use eyre::Result;
+use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::env;
+use std::str;
 use url::Url;
-use crate::uni_math::v3;
-use crate::utils::helpers::get_selectors;
-use crate::utils::constants::{
-    DAI_ADDRESS, 
-    USDC_ADDRESS, 
-    USDT_ADDRESS, 
-    WETH_ADDRESS, 
-    NULL_ADDRESS,
-    UNISWAP_UNIVERSAL_ROUTER,
-    UNISWAP_V3_ROUTER_1,
-    UNISWAP_V3_ROUTER_2,
-    UNISWAP_V2_ROUTER_1,
-    UNISWAP_V2_ROUTER_2,
-    SELECTOR_UNI,
-    SELECTOR_V3_R1,
-    SELECTOR_V3_R2,
-    SELECTOR_V2_R1,
-    SELECTOR_V2_R2,
-};
-
-
 
 #[tokio::main]
 pub async fn init() -> Result<()> {
@@ -56,17 +42,18 @@ pub async fn init() -> Result<()> {
     let uniswap_v2_router_2 = UNISWAP_V2_ROUTER_2.parse::<H160>()?;
     let uniswap_uni_router = UNISWAP_UNIVERSAL_ROUTER.parse::<H160>()?;
 
-    let selectors_uni   = get_selectors(&SELECTOR_UNI);
+    let selectors_uni = get_selectors(&SELECTOR_UNI);
     let selectors_v3_r1 = get_selectors(&SELECTOR_V3_R1);
     let selectors_v3_r2 = get_selectors(&SELECTOR_V3_R2);
     let selectors_v2_r1 = get_selectors(&SELECTOR_V2_R1);
     let selectors_v2_r2 = get_selectors(&SELECTOR_V2_R2);
-    
 
     // for WETH address need to check current request and pool via weth9 function
     // from router contract
-    let http_provider_sepolia = Provider::try_from(format!("https://sepolia.infura.io/v3/{}", _infura_key))?;
-    let http_provider = Provider::try_from(format!("https://mainnet.infura.io/v3/{}", _infura_key))?;
+    let http_provider_sepolia =
+        Provider::try_from(format!("https://sepolia.infura.io/v3/{}", _infura_key))?;
+    let http_provider =
+        Provider::try_from(format!("https://mainnet.infura.io/v3/{}", _infura_key))?;
 
     // see: https://www.gakonst.com/ethers-rs/providers/ws.html
     let ws_url_sepolia = format!("wss://sepolia.infura.io/ws/v3/{}", _infura_key);
@@ -95,12 +82,12 @@ pub async fn init() -> Result<()> {
         wallet,
     );
 
-// let seploia_endpoint = "https://api-sepolia.etherscan.io/";
-//     https://api-sepolia.etherscan.io/api
-//    ?module=transaction
-//    &action=getstatus
-//    &txhash=0x5d329954fae7d19b2fb9abf0e6862735243b1079c58e0ea307d7e933657ac083
-//    &apikey=YourApiKeyToken
+    // let seploia_endpoint = "https://api-sepolia.etherscan.io/";
+    //     https://api-sepolia.etherscan.io/api
+    //    ?module=transaction
+    //    &action=getstatus
+    //    &txhash=0x5d329954fae7d19b2fb9abf0e6862735243b1079c58e0ea307d7e933657ac083
+    //    &apikey=YourApiKeyToken
     let mut stream = ws_provider.subscribe_pending_txs().await?;
 
     //let mut stream = ws_provider.pending_bundle(msg).await?;
@@ -116,15 +103,21 @@ pub async fn init() -> Result<()> {
             (&uniswap_v2_router_1, "Uniswap V2 Router 1"),
             (&uniswap_v2_router_2, "Uniswap V2 Router 2"),
         ];
-        
+
         let mut router_selectors = HashMap::new();
         router_selectors.insert(uniswap_v3_router_1, &selectors_v3_r1);
         router_selectors.insert(uniswap_v3_router_2, &selectors_v3_r2);
         router_selectors.insert(uniswap_v2_router_1, &selectors_v2_r1);
         router_selectors.insert(uniswap_v2_router_2, &selectors_v2_r2);
-        
+
         if data.input.len() >= 4 {
-            if let Some((router_name, selectors)) = routers.iter().cloned().find_map(|(router, name)| router_selectors.get(router).map(|selectors| (name, selectors))) {
+            if let Some((router_name, selectors)) =
+                routers.iter().cloned().find_map(|(router, name)| {
+                    router_selectors
+                        .get(router)
+                        .map(|selectors| (name, selectors))
+                })
+            {
                 let first_four_bytes = &data.input[..4];
                 for (i, selector) in selectors.iter().enumerate() {
                     let selector_slice = selector.as_ref();
@@ -135,68 +128,62 @@ pub async fn init() -> Result<()> {
             }
         }
 
-
         // let tx: TypedTransaction = TransactionRequest::pay("vitalik.eth", 1).into();
         // let signature = client.signer().sign_transaction(&tx).await?;
         // let mut bundle = BundleRequest::new();
         // bundle.add_transaction(
         //     tx.rlp_signed(&signature)
         // );
-    
+
         //let bundle = bundle.set_block(block.number.unwrap()+1).set_simulation_block(block.number.unwrap()).set_simulation_timestamp(0);
 
         //sending bundle
         // let pending_bundle = client.inner().send_bundle(&bundle).await?;
     }
-    
 
     Ok(())
 }
 
-
-
-
 /*
-Some(Transaction { 
-    hash: 0x736a6a6abea12465de1cc4d73e9d0633203d30170aadf826a77c3f6d154d7732, 
-    nonce: 21000, 
-    block_hash: None, block_number: None, transaction_index: None, 
-    from: 0xaabb8c0deb1270151b9b0776bbf9c890cd877e67, 
-    to: Some(0x53844f9577c2334e541aec7df7174ece5df1fcf0), 
-    value: 0, 
-    gas_price: Some(1000000000), 
-    gas: 3000000, 
-    input: Bytes(0x9ed93318000000000000000000000000aabb8c0deb1270151b9b0776bbf9c890cd877e67), 
-    v: 22310258, 
-    r: 52120736319054986821632375614197023773675339739065370707613673340985280157230, 
+Some(Transaction {
+    hash: 0x736a6a6abea12465de1cc4d73e9d0633203d30170aadf826a77c3f6d154d7732,
+    nonce: 21000,
+    block_hash: None, block_number: None, transaction_index: None,
+    from: 0xaabb8c0deb1270151b9b0776bbf9c890cd877e67,
+    to: Some(0x53844f9577c2334e541aec7df7174ece5df1fcf0),
+    value: 0,
+    gas_price: Some(1000000000),
+    gas: 3000000,
+    input: Bytes(0x9ed93318000000000000000000000000aabb8c0deb1270151b9b0776bbf9c890cd877e67),
+    v: 22310258,
+    r: 52120736319054986821632375614197023773675339739065370707613673340985280157230,
     s: 2345234057493645648343460763188633139081893918229592397379631637369603903814, transaction_type: Some(0), access_list: None, max_priority_fee_per_gas: None, max_fee_per_gas: None, chain_id: Some(11155111), other: OtherFields { inner: {} } })
 
     // monitor works
     // monitor specific address
     // parse the data to only the functions we want ... bytes4(keccak256(function_name(paramenters)))
 */
-// Some(Transaction { 
-//     hash: 0x69be97c0cda4d872ee5868bfcd7671a8acb915a4f7a7edba7b76f4d08dad7c08, 
-//     nonce: 8848, 
-//     block_hash: None, 
-//     block_number: None, 
-//     transaction_index: None, 
-//     from: 0x007ab5199b6c57f7aa51bc3d0604a43505501a0c, 
-//     to: Some(0x0328adcc26d7ee6a71843bdbf716b7b2b0b4ffa3), 
-//     value: 1000000000000000, 
-//     gas_price: Some(1500000014), 
-//     gas: 21000, 
-//     input: Bytes(0x), 
-//     v: 0, 
-//     r: 108853379393575403114648895570501267920446440064797523802631923820109603901592, 
-//     s: 54432401851499039607746644666317390761051500462096442063488962792652443980717, 
-//     transaction_type: Some(2), 
-//     access_list: Some(AccessList([])), 
-//     max_priority_fee_per_gas: Some(1500000000), 
-//     max_fee_per_gas: Some(1500000014), 
-//     chain_id: Some(11155111), 
+// Some(Transaction {
+//     hash: 0x69be97c0cda4d872ee5868bfcd7671a8acb915a4f7a7edba7b76f4d08dad7c08,
+//     nonce: 8848,
+//     block_hash: None,
+//     block_number: None,
+//     transaction_index: None,
+//     from: 0x007ab5199b6c57f7aa51bc3d0604a43505501a0c,
+//     to: Some(0x0328adcc26d7ee6a71843bdbf716b7b2b0b4ffa3),
+//     value: 1000000000000000,
+//     gas_price: Some(1500000014),
+//     gas: 21000,
+//     input: Bytes(0x),
+//     v: 0,
+//     r: 108853379393575403114648895570501267920446440064797523802631923820109603901592,
+//     s: 54432401851499039607746644666317390761051500462096442063488962792652443980717,
+//     transaction_type: Some(2),
+//     access_list: Some(AccessList([])),
+//     max_priority_fee_per_gas: Some(1500000000),
+//     max_fee_per_gas: Some(1500000014),
+//     chain_id: Some(11155111),
 //     other: OtherFields { inner: {} } })
-
 
 // filter out 'to' targeted addresses we want
 
@@ -223,7 +210,7 @@ T1 - B => A, A => C, C => B
 T0 - swap() -> A/B(V2): A => B
         result: A($): down; B($): up
 
-T1 - Sell A buy B on V3 => sell B  buy A on V2 
+T1 - Sell A buy B on V3 => sell B  buy A on V2
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -233,7 +220,7 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
     -USDT address: https://etherscan.io/address/0xdac17f958d2ee523a2206206994597c13d831ec7
 
 2) ✅ fine addresses to monitor
-    - find v2 router and v3 router addresses 
+    - find v2 router and v3 router addresses
     - find WETH and USDT addresses
     - WETH/USDT v2 pool address, and WETH/USDT v3 pool address
     ROUTERS = {
@@ -269,7 +256,7 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
 
     FACTORY_ADDRESSES = {
         'uniswap_v2': '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
-        'uniswap_v3': '0x1F98431c8aD98523631AE4a59f267346ea31F984', 
+        'uniswap_v3': '0x1F98431c8aD98523631AE4a59f267346ea31F984',
          'uniswap_v3_router2': {
              '0x1F98431c8aD98523631AE4a59f267346ea31F984',
              '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f'
@@ -282,7 +269,7 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
     - ✅ using txHash to req transaction data from Infura websocket
     - ✅ filter out everything but the tx that interact with v2 and v3 routers
 
-4) ✅ once we found the tx that interact with v2 and v3 routers from step (3), 
+4) ✅ once we found the tx that interact with v2 and v3 routers from step (3),
     check the tx's calldata to make sure it matches swap() selector
     - ✅ find the bytes for swap() selectors on v2 and v3
         - v2: oxasbsaadsf, v3: 0xasdfasdf
@@ -300,8 +287,8 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
 
 7) using token-in & token-out data, determine the effect on the pool reserves
     - simulate the effect if the swap goes through and get the ending pool state
-        - for V2 and V3  
-    
+        - for V2 and V3
+
 
     Resource: UniV3 Math: https://crates.io/crates/uniswap_v3_math
 
@@ -353,25 +340,25 @@ V2 ROUTER02 SELECTORS TO WATCH
 
 
 
-Transaction { 
-    hash: 0x872be985300821f1c7c8d099b346276948bc84354a642ff3ecd774d602246b60, 
-    nonce: 41, 
-    block_hash: None, 
-    block_number: None, 
-    transaction_index: None, 
-    from: 0xba3b26154931be77bd44928e62eee66f34db2661, 
-    to: Some(0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45), 
-    value: 1000000000000000000, 
-    gas_price: Some(125000000000), 
-    gas: 304258, 
-    input: Bytes(0x5ae401dc000000000000000000000000000000000000000000000000000000006455e6bb00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000e4472b43f30000000000000000000000000000000000000000000000000de0b6b3a764000000000000000000000000000000000000000000012212eb87e90adba30bbcec270000000000000000000000000000000000000000000000000000000000000080000000000000000000000000ba3b26154931be77bd44928e62eee66f34db26610000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000378e1be15be6d6d1f23cfe7090b6a77660dbf14d00000000000000000000000000000000000000000000000000000000), 
-    v: 1, 
-    r: 101320250276167864627564976104790592610069124837894492495663500246216674461521, 
-    s: 36519862551638435947037849073949578028978097248470881776598175722020804060769, 
-    transaction_type: Some(2), 
-    access_list: Some(AccessList([])), 
-    max_priority_fee_per_gas: Some(12500000000), 
-    max_fee_per_gas: Some(125000000000), 
-    chain_id: Some(1), 
+Transaction {
+    hash: 0x872be985300821f1c7c8d099b346276948bc84354a642ff3ecd774d602246b60,
+    nonce: 41,
+    block_hash: None,
+    block_number: None,
+    transaction_index: None,
+    from: 0xba3b26154931be77bd44928e62eee66f34db2661,
+    to: Some(0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45),
+    value: 1000000000000000000,
+    gas_price: Some(125000000000),
+    gas: 304258,
+    input: Bytes(0x5ae401dc000000000000000000000000000000000000000000000000000000006455e6bb00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000e4472b43f30000000000000000000000000000000000000000000000000de0b6b3a764000000000000000000000000000000000000000000012212eb87e90adba30bbcec270000000000000000000000000000000000000000000000000000000000000080000000000000000000000000ba3b26154931be77bd44928e62eee66f34db26610000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2000000000000000000000000378e1be15be6d6d1f23cfe7090b6a77660dbf14d00000000000000000000000000000000000000000000000000000000),
+    v: 1,
+    r: 101320250276167864627564976104790592610069124837894492495663500246216674461521,
+    s: 36519862551638435947037849073949578028978097248470881776598175722020804060769,
+    transaction_type: Some(2),
+    access_list: Some(AccessList([])),
+    max_priority_fee_per_gas: Some(12500000000),
+    max_fee_per_gas: Some(125000000000),
+    chain_id: Some(1),
     other: OtherFields { inner: {} } }
 */
