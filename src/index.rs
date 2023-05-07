@@ -1,14 +1,13 @@
-use dotenv::dotenv;
 use std::env;
 use std::str;
 use std::collections::HashMap;
 use ethers::core::{
     rand::thread_rng, 
-    types::TransactionRequest, 
-    types::transaction::eip2718::TypedTransaction
+    types::{TransactionRequest, Bytes}, 
+    types::transaction::eip2718::TypedTransaction,
+    utils::hex::FromHex
 };
-use ethers_core::types::Bytes;
-use ethers_core::utils::hex::FromHex;
+use ethers::signers::{LocalWallet, Signer};
 use ethers::prelude::*;
 use ethers::providers::{Provider, Ws};
 use ethers::core::k256::SecretKey;
@@ -16,12 +15,11 @@ use ethers_flashbots::{BundleRequest, FlashbotsMiddleware};
 use eyre::Result;
 use std::convert::TryFrom;
 use url::Url;
-use ethers_signers::{LocalWallet, Signer};
+use crate::uni_math::v3;
 
 #[tokio::main]
-pub async fn first_fn() -> Result<()> {
+pub async fn init() -> Result<()> {
     // data collection
-    dotenv().ok(); 
     let _infura_key = env::var("INFURA_API_KEY").clone().unwrap();
     let _dai_address = env::var("DAI_ADDRESS").clone().unwrap();
     let _usdc_address = env::var("USDC_ADDRESS").clone().unwrap();
@@ -122,19 +120,10 @@ pub async fn first_fn() -> Result<()> {
     println!("Bundle Signer: {}", _bundle_signer);
     println!("Wallet: {}", _wallet);
 
-    // change commented sections to config file options
-    // let client_sepolia = SignerMiddleware::new(
-    //     FlashbotsMiddleware::new(
-    //         http_provider_sepolia,
-    //         Url::parse("https://relay-sepolia.flashbots.net")?,
-    //         bundle_signer.unwrap(),
-    //     ),
-    //     wallet,
-    // );
-
     let client = SignerMiddleware::new(
         FlashbotsMiddleware::new(
             http_provider,
+            //Url::parse("https://relay-sepolia.flashbots.net")?,
             Url::parse("https://relay.flashbots.net")?,
             bundle_signer.unwrap(),
         ),
@@ -219,9 +208,8 @@ pub async fn first_fn() -> Result<()> {
         // let pending_bundle = client.inner().send_bundle(&bundle).await?;
     }
     
-    
 
-     Ok(())
+    Ok(())
 }
 
 fn print_type_of<T>(_: &T) {

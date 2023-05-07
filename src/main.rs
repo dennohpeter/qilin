@@ -1,5 +1,8 @@
-mod index;
+use dotenv::dotenv;
+pub mod uni_math;
+pub mod index;
 
 fn main() {
-    index::first_fn();
+    dotenv(); 
+    index::init();
 }
