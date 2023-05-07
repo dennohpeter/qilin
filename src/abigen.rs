@@ -5,8 +5,7 @@ use ethers::{
     prelude::{abigen, Abigen},
 };
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>>{
+pub async fn generate_abigen() -> Result<(), Box<dyn Error>>{
     println!("Hello, world!");
     let abi_source = "./abi/uniswap_v3_router.json";
     Abigen::new("SwapRouter", abi_source)?.generate()?.write_to_file("swap_router.rs")?;

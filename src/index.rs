@@ -25,9 +25,29 @@ use std::env;
 use std::str;
 use url::Url;
 use std::error::Error;
+use crate::abigen;
 
 #[tokio::main]
-pub async fn init() -> Result<()> {
+pub async fn init() -> Result<(), Box<dyn Error>> {
+
+    let arg: Vec<String> = env::args().collect();
+
+    let first_arg = if arg.len() > 1  {arg[1].clone()} else {String::from("")};
+
+    match first_arg.get(0..1) {
+        Some(_) => {
+            if first_arg.contains("abigen") {
+                abigen::generate_abigen().await?;
+                return Ok(());
+            } else {
+                println!("command not recognized");
+            }
+        },
+        None => {
+            println!("");
+        }
+    }
+
     // data collection
     let _infura_key = env::var("INFURA_API_KEY").clone().unwrap();
     let _etherscan_key = env::var("ETHERSCAN_API_KEY").clone().unwrap();
