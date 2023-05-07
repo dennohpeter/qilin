@@ -3,18 +3,38 @@ use std::str;
 use std::collections::HashMap;
 use ethers::core::{
     rand::thread_rng, 
-    types::{TransactionRequest, Bytes}, 
+    types::{TransactionRequest, Chain, Bytes}, 
     types::transaction::eip2718::TypedTransaction,
+    utils::hex::FromHex,
 };
 use ethers::signers::{LocalWallet, Signer};
+use ethers::etherscan::Client;
 use ethers::prelude::*;
 use ethers::providers::{Provider, Ws};
 use ethers::core::k256::SecretKey;
+use ethers::solc::resolver::print;
 use ethers_flashbots::{BundleRequest, FlashbotsMiddleware};
 use eyre::Result;
 use std::convert::TryFrom;
 use url::Url;
 use crate::uni_math::v3;
+use crate::utils::helpers::get_selectors;
+use crate::utils::constants::{
+    DAI_ADDRESS, 
+    USDC_ADDRESS, 
+    USDT_ADDRESS, 
+    WETH_ADDRESS, 
+    NULL_ADDRESS,
+    UNISWAP_UNIVERSAL_ROUTER,
+    UNISWAP_V3_ROUTER_1,
+    UNISWAP_V3_ROUTER_2,
+    UNISWAP_V2_ROUTER_1,
+    UNISWAP_V2_ROUTER_2,
+    SELECTOR_UNI,
+    SELECTOR_V3_R1,
+    SELECTOR_V3_R2,
+    SELECTOR_V2_R1,
+    SELECTOR_V2_R2,
 
 // SELF
 use crate::constants::*;
@@ -25,11 +45,24 @@ use crate::utils::{
     bytes_to_string
 };
 
+
+
 #[tokio::main]
 pub async fn init() -> Result<()> {
     // data collection
     let _infura_key = env::var("INFURA_API_KEY").clone().unwrap();
+    let _etherscan_key = env::var("ETHERSCAN_API_KEY").clone().unwrap();
+    let _dai_address = DAI_ADDRESS.parse::<H160>()?;
+    let _usdc_address = USDC_ADDRESS.parse::<H160>()?;
+    let _usdt_address = USDT_ADDRESS.parse::<H160>()?;
+    let _weth_address = WETH_ADDRESS.parse::<H160>()?;
+    let _null_address = NULL_ADDRESS.parse::<H160>()?;
 
+    let uniswap_v3_router_1 = UNISWAP_V3_ROUTER_1.parse::<H160>()?;
+    let uniswap_v3_router_2 = UNISWAP_V3_ROUTER_2.parse::<H160>()?;
+    let uniswap_v2_router_1 = UNISWAP_V2_ROUTER_1.parse::<H160>()?;
+    let uniswap_v2_router_2 = UNISWAP_V2_ROUTER_2.parse::<H160>()?;
+    let uniswap_uni_router = UNISWAP_UNIVERSAL_ROUTER.parse::<H160>()?;
 
     let selectors_uni   = get_selectors(&SELECTOR_UNI);
     let selectors_v3_r1 = get_selectors(&SELECTOR_V3_R1);
@@ -37,18 +70,6 @@ pub async fn init() -> Result<()> {
     let selectors_v2_r1 = get_selectors(&SELECTOR_V2_R1);
     let selectors_v2_r2 = get_selectors(&SELECTOR_V2_R2);
     
-    /*
-    What we care about:
-    - Pool transfers to/from router, from watching pool
-    - Token transfers to/from router, from watching token
-    - Burn when applicable, from watching token
-    - Rebase when applicable, from watching token
-    - Sync when applicable, from watching token
-    - Technically we need to figure out how to deal with the math but w/e for now
-
-
-    configure our subscription(s)
-    */
 
     // for WETH address need to check current request and pool via weth9 function
     // from router contract
@@ -90,16 +111,6 @@ pub async fn init() -> Result<()> {
 //    &apikey=YourApiKeyToken
     let mut stream = ws_provider.subscribe_pending_txs().await?;
 
-    
-    // println!(
-    //     "{0: <42} | {1: <42} | {2: <20} | {3: <10} | {4: <66} | {5: <66}",
-    //     "to", 
-    //     "from", 
-    //     "value", 
-    //     "gas", 
-    //     "hash", 
-    //     "calldata"
-    // );
     //let mut stream = ws_provider.pending_bundle(msg).await?;
 
     let routers = [
@@ -120,6 +131,7 @@ pub async fn init() -> Result<()> {
     while let Some(tx_hash) = stream.next().await {
         let msg = ws_provider.get_transaction(tx_hash).await?;
         let data = msg.clone().unwrap_or(Transaction::default());
+        let _to = data.to.clone().unwrap_or(_null_address);
         let _to = data.to.clone().unwrap_or(NULL_ADDRESS.parse::<H160>()?);
 
         let mut router: &str = "";

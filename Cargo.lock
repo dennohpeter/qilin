@@ -1265,28 +1265,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
-name = "flashbots_test"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "dotenv",
- "ethers",
- "ethers-flashbots",
- "eyre",
- "futures-core",
- "futures-util",
- "pin-project",
- "reqwest",
- "ruint",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "url",
-]
-
-[[package]]
 name = "flate2"
 version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2473,6 +2451,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b63bdb0cd06f1f4dedf69b254734f9b45af66e4a031e42a7480257d9898b435"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "qi-bot"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "dotenv",
+ "ethers",
+ "ethers-flashbots",
+ "eyre",
+ "futures-core",
+ "futures-util",
+ "pin-project",
+ "reqwest",
+ "ruint",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "url",
 ]
 
 [[package]]
