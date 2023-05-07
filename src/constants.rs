@@ -1,4 +1,8 @@
-pub const SELECTOR_UNI: [&str; 1] = ["ac9650d8"]; // "multicall(bytes[])"
+pub const SELECTOR_UNI: [&str; 1] = [
+    "24856bc3", // "execute(bytes,bytes[])"
+    "3593564c", // "execute(bytes,bytes[],uint256)"
+    "fa461e33"  // uniswapV3SwapCallback(int256,int256,bytes)
+];
 
 pub const SELECTOR_V3_R1: [&str; 1] = ["ac9650d8"]; // "multicall(bytes[])"
 
