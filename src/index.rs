@@ -18,16 +18,23 @@ use eyre::Result;
 use std::convert::TryFrom;
 use url::Url;
 use crate::uni_math::v3;
+use crate::utils::helpers::get_selectors;
 use crate::utils::constants::{
     DAI_ADDRESS, 
     USDC_ADDRESS, 
     USDT_ADDRESS, 
     WETH_ADDRESS, 
     NULL_ADDRESS,
+    UNISWAP_UNIVERSAL_ROUTER,
     UNISWAP_V3_ROUTER_1,
     UNISWAP_V3_ROUTER_2,
     UNISWAP_V2_ROUTER_1,
     UNISWAP_V2_ROUTER_2,
+    SELECTOR_UNI,
+    SELECTOR_V3_R1,
+    SELECTOR_V3_R2,
+    SELECTOR_V2_R1,
+    SELECTOR_V2_R2,
 };
 
 
@@ -47,59 +54,13 @@ pub async fn init() -> Result<()> {
     let uniswap_v3_router_2 = UNISWAP_V3_ROUTER_2.parse::<H160>()?;
     let uniswap_v2_router_1 = UNISWAP_V2_ROUTER_1.parse::<H160>()?;
     let uniswap_v2_router_2 = UNISWAP_V2_ROUTER_2.parse::<H160>()?;
+    let uniswap_uni_router = UNISWAP_UNIVERSAL_ROUTER.parse::<H160>()?;
 
-    // V3 ROUTER1 SELECTORS TO WATCH
-    let selector_v3_r1 = vec![
-        "ac9650d8"  // "multicall(bytes[])"
-    ];
-    let selectors_v3_r1: Vec<Bytes> = selector_v3_r1
-        .iter()
-        .map(|s| hex_to_bytes(s).expect("Invalid selector"))
-        .collect();
-
-    // V3 ROUTER2 SELECTORS TO WATCH
-    let selector_v3_r2 = vec![
-        "1f0464d1", // "multicall(bytes32,bytes[])"
-        "5ae401dc", // "multicall(uint256,bytes[])"
-        "ac9650d8", // "multicall(bytes[])"
-        "472b43f3", // "swapExactTokensForTokens(uint256,uint256,address[],address)"
-        "42712a67"  // "swapTokensForExactTokens(uint256,uint256,address[],address)"
-    ];
-    let selectors_v3_r2: Vec<Bytes> = selector_v3_r2
-        .iter()
-        .map(|s| hex_to_bytes(s).expect("Invalid selector"))
-        .collect();
-
-    // V2 ROUTER01 SELECTORS TO WATCH
-    let selector_v2_r1 = vec![
-        "fb3bdb41", // "swapETHForExactTokens(uint256,address[],address,uint256)",
-        "7ff36ab5", // "swapExactETHForTokens(uint256,address[],address,uint256)",
-        "18cbafe5", // "swapExactTokensForETH(uint256,uint256,address[],address,uint256)",
-        "38ed1739", // "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-        "4a25d94a", // "swapTokensForExactETH(uint256,uint256,address[],address,uint256)",
-        "8803dbee"  // "swapTokensForExactTokens(uint256,uint256,address[],address,uint256)"
-    ];
-    let selectors_v2_r1: Vec<Bytes> = selector_v2_r1
-        .iter()
-        .map(|s| hex_to_bytes(s).expect("Invalid selector"))
-        .collect();
-
-    // V2 ROUTER02 SELECTORS TO WATCH
-    let selector_v1_r2 = vec![
-        "fb3bdb41", // "swapETHForExactTokens(uint256,address[],address,uint256)",
-        "7ff36ab5", // "swapExactETHForTokens(uint256,address[],address,uint256)",
-        "b6f9de95", // "swapExactETHForTokensSupportingFeeOnTransferTokens(uint256,address[],address,uint256)",
-        "18cbafe5", // "swapExactTokensForETH(uint256,uint256,address[],address,uint256)",
-        "791ac947", // "swapExactTokensForETHSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)",
-        "38ed1739", // "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-        "5c11d795", // "swapExactTokensForTokensSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)",
-        "4a25d94a", // "swapTokensForExactETH(uint256,uint256,address[],address,uint256)",
-        "8803dbee"  // "swapTokensForExactTokens(uint256,uint256,address[],address,uint256)"
-    ];
-    let selector_v1_r2: Vec<Bytes> = selector_v1_r2
-        .iter()
-        .map(|s| hex_to_bytes(s).expect("Invalid selector"))
-        .collect();
+    let selectors_uni   = get_selectors(&SELECTOR_UNI);
+    let selectors_v3_r1 = get_selectors(&SELECTOR_V3_R1);
+    let selectors_v3_r2 = get_selectors(&SELECTOR_V3_R2);
+    let selectors_v2_r1 = get_selectors(&SELECTOR_V2_R1);
+    let selectors_v2_r2 = get_selectors(&SELECTOR_V2_R2);
     
 
     // for WETH address need to check current request and pool via weth9 function
@@ -134,7 +95,7 @@ pub async fn init() -> Result<()> {
         wallet,
     );
 
-    // let seploia_endpoint = "https://api-sepolia.etherscan.io/";
+// let seploia_endpoint = "https://api-sepolia.etherscan.io/";
 //     https://api-sepolia.etherscan.io/api
 //    ?module=transaction
 //    &action=getstatus
@@ -149,6 +110,7 @@ pub async fn init() -> Result<()> {
         let _to = data.to.clone().unwrap_or(_null_address);
 
         let routers = [
+            (&uniswap_uni_router, "Uniswap Univeral Router"),
             (&uniswap_v3_router_1, "Uniswap V3 Router 1"),
             (&uniswap_v3_router_2, "Uniswap V3 Router 2"),
             (&uniswap_v2_router_1, "Uniswap V2 Router 1"),
@@ -159,7 +121,7 @@ pub async fn init() -> Result<()> {
         router_selectors.insert(uniswap_v3_router_1, &selectors_v3_r1);
         router_selectors.insert(uniswap_v3_router_2, &selectors_v3_r2);
         router_selectors.insert(uniswap_v2_router_1, &selectors_v2_r1);
-        router_selectors.insert(uniswap_v2_router_2, &selector_v1_r2);
+        router_selectors.insert(uniswap_v2_router_2, &selectors_v2_r2);
         
         if data.input.len() >= 4 {
             if let Some((router_name, selectors)) = routers.iter().cloned().find_map(|(router, name)| router_selectors.get(router).map(|selectors| (name, selectors))) {
@@ -191,23 +153,8 @@ pub async fn init() -> Result<()> {
     Ok(())
 }
 
-fn print_type_of<T>(_: &T) {
-    println!("{}", std::any::type_name::<T>())
-}
 
-fn hex_to_bytes(hex: &str) -> Result<Bytes, ()> {
-    let mut bytes = Vec::new();
 
-    for i in 0..(hex.len() / 2) {
-        let res = u8::from_str_radix(&hex[2 * i..2 * i + 2], 16);
-        match res {
-            Ok(v) => bytes.push(v),
-            Err(_) => return Err(()),
-        }
-    }
-
-    Ok(Bytes::from(bytes))
-}
 
 /*
 Some(Transaction { 
