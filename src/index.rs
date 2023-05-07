@@ -18,7 +18,6 @@ use eyre::Result;
 use std::convert::TryFrom;
 use url::Url;
 use crate::uni_math::v3;
-use crate::utils::helpers::get_selectors;
 use crate::utils::constants::{
     DAI_ADDRESS, 
     USDC_ADDRESS, 
@@ -35,10 +34,10 @@ use crate::utils::constants::{
     SELECTOR_V3_R2,
     SELECTOR_V2_R1,
     SELECTOR_V2_R2,
-
+};
 // SELF
-use crate::constants::*;
-use crate::utils::{
+use crate::utils::constants::*;
+use crate::utils::helpers::{
     print_type_of,
     hex_to_bytes,
     get_selectors,
