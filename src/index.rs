@@ -107,11 +107,11 @@ pub async fn init() -> Result<()> {
         let _to = data.to.clone().unwrap_or(NULL_ADDRESS.parse::<H160>()?);
 
         let routers = [
-            (&UNISWAP_UNIVERSAL_ROUTER, "Uniswap Univeral Router"),
-            (&UNISWAP_V3_ROUTER_1, "Uniswap V3 Router 1"),
-            (&UNISWAP_V3_ROUTER_2, "Uniswap V3 Router 2"),
-            (&UNISWAP_V2_ROUTER_1, "Uniswap V2 Router 1"),
-            (&UNISWAP_V2_ROUTER_2, "Uniswap V2 Router 2"),
+            (UNISWAP_UNIVERSAL_ROUTER, "Uniswap Univeral Router"),
+            (UNISWAP_V3_ROUTER_1, "Uniswap V3 Router 1"),
+            (UNISWAP_V3_ROUTER_2, "Uniswap V3 Router 2"),
+            (UNISWAP_V2_ROUTER_1, "Uniswap V2 Router 1"),
+            (UNISWAP_V2_ROUTER_2, "Uniswap V2 Router 2"),
         ];
         
         let mut router_selectors = HashMap::new();
@@ -122,25 +122,37 @@ pub async fn init() -> Result<()> {
         router_selectors.insert(UNISWAP_V2_ROUTER_2, &selectors_v2_r2);
         
         if data.input.len() >= 4 {
-            //println!("Input: {:?}", data.input);
-            //println!("To: {:?}", data.to);
-            if let Some((router_name, selectors)) = routers.iter().cloned().find_map(|(router, name)| router_selectors.get(router).map(|selectors| (name, selectors))) {
-                let first_four_bytes = &data.input[..4];
-                println!("To: {:?}", data.to);
-                println!("first_four_bytes: {:?}", bytes_to_string(first_four_bytes));
-                for (i, selector) in selectors.iter().enumerate() {
-                    let selector_slice = selector.as_ref();
-                    if first_four_bytes.eq(selector_slice) {
-                        // we need to handle our logic for the selector calldata here
-                        // 1) split data
-                        // 2) convert the variables
-                        //      - numbers to ethers::types::{I256, U256};
-                        //      - addresses to H160
-                        // 3) ignore multicall but console log
-                        println!("{}: Selector {} - {:?}", router_name, i, selector);
-                    }
+            for router in router_selectors.keys() {
+                if _to == router.parse::<H160>()? {
+                    println!("router {:?}",router);
+                    // let index = routers.iter().position(|(_router, _name)| _router == router);
+                    // if let Some(i) = index {
+                    //     println!("i: {:?}", i);
+                    // }
                 }
             }
+
+            //println!("Input: {:?}", data.input);
+            //println!("To: {:?}", data.to);
+            // if let Some((router_name, selectors)) = routers.iter().cloned().find_map(|(router, name)| router_selectors.get(router).map(|selectors| (name, selectors))) {
+            //     let first_four_bytes = &data.input[..4];
+            //     // println!("To: {:?}", data.to);
+            //     // println!("first_four_bytes: {:?}", bytes_to_string(first_four_bytes));
+            //     for (i, selector) in selectors.iter().enumerate() {
+            //         let selector_slice = selector.as_ref();
+            //         println!("To: {:?}", data.to);
+            //     println!("first_four_bytes: {:?}", bytes_to_string(first_four_bytes));
+            //         if first_four_bytes.eq(selector_slice) {
+            //             // we need to handle our logic for the selector calldata here
+            //             // 1) split data
+            //             // 2) convert the variables
+            //             //      - numbers to ethers::types::{I256, U256};
+            //             //      - addresses to H160
+            //             // 3) ignore multicall but console log
+            //             println!("{}: Selector {} - {:?}", router_name, i, selector);
+            //         }
+            //     }
+            // }
         }
 
 
