@@ -3,11 +3,11 @@ use std::str;
 use std::collections::HashMap;
 use ethers::core::{
     rand::thread_rng, 
-    types::TransactionRequest, 
-    types::transaction::eip2718::TypedTransaction
+    types::{TransactionRequest, Bytes}, 
+    types::transaction::eip2718::TypedTransaction,
+    utils::hex::FromHex
 };
-use ethers_core::types::Bytes;
-use ethers_core::utils::hex::FromHex;
+use ethers::signers::{LocalWallet, Signer};
 use ethers::prelude::*;
 use ethers::providers::{Provider, Ws};
 use ethers::core::k256::SecretKey;
@@ -15,7 +15,6 @@ use ethers_flashbots::{BundleRequest, FlashbotsMiddleware};
 use eyre::Result;
 use std::convert::TryFrom;
 use url::Url;
-use ethers_signers::{LocalWallet, Signer};
 use crate::uni_math::v3;
 
 #[tokio::main]
