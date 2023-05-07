@@ -5,7 +5,6 @@ use ethers::core::{
     rand::thread_rng, 
     types::{TransactionRequest, Bytes}, 
     types::transaction::eip2718::TypedTransaction,
-    utils::hex::FromHex
 };
 use ethers::signers::{LocalWallet, Signer};
 use ethers::prelude::*;
@@ -22,24 +21,15 @@ use crate::constants::*;
 use crate::utils::{
     print_type_of,
     hex_to_bytes,
-    get_selectors
+    get_selectors,
+    bytes_to_string
 };
 
 #[tokio::main]
 pub async fn init() -> Result<()> {
     // data collection
     let _infura_key = env::var("INFURA_API_KEY").clone().unwrap();
-    let _dai_address = env::var("DAI_ADDRESS").clone().unwrap();
-    let _usdc_address = env::var("USDC_ADDRESS").clone().unwrap();
-    let _usdt_address = env::var("USDT_ADDRESS").clone().unwrap();
-    let _weth_address = env::var("WETH_ADDRESS").clone().unwrap();
-    let _null_address = env::var("NULL_ADDRESS").clone().unwrap();
 
-    let uniswap_uni_router = env::var("UNISWAP_UNIVERSAL_ROUTER").clone().unwrap().parse::<H160>()?;
-    let uniswap_v3_router_1 = env::var("UNISWAP_V3_ROUTER_1").clone().unwrap().parse::<H160>()?;
-    let uniswap_v3_router_2 = env::var("UNISWAP_V3_ROUTER_2").clone().unwrap().parse::<H160>()?;
-    let uniswap_v2_router_1 = env::var("UNISWAP_V2_ROUTER_1").clone().unwrap().parse::<H160>()?;
-    let uniswap_v2_router_2 = env::var("UNISWAP_V2_ROUTER_2").clone().unwrap().parse::<H160>()?;
 
     let selectors_uni   = get_selectors(&SELECTOR_UNI);
     let selectors_v3_r1 = get_selectors(&SELECTOR_V3_R1);
@@ -112,30 +102,41 @@ pub async fn init() -> Result<()> {
     // );
     //let mut stream = ws_provider.pending_bundle(msg).await?;
     while let Some(tx_hash) = stream.next().await {
-        let mut msg = ws_provider.get_transaction(tx_hash).await?;
+        let msg = ws_provider.get_transaction(tx_hash).await?;
         let data = msg.clone().unwrap_or(Transaction::default());
-        let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
+        let _to = data.to.clone().unwrap_or(NULL_ADDRESS.parse::<H160>()?);
 
         let routers = [
-            (&uniswap_uni_router, "Uniswap Univeral Router"),
-            (&uniswap_v3_router_1, "Uniswap V3 Router 1"),
-            (&uniswap_v3_router_2, "Uniswap V3 Router 2"),
-            (&uniswap_v2_router_1, "Uniswap V2 Router 1"),
-            (&uniswap_v2_router_2, "Uniswap V2 Router 2"),
+            (&UNISWAP_UNIVERSAL_ROUTER, "Uniswap Univeral Router"),
+            (&UNISWAP_V3_ROUTER_1, "Uniswap V3 Router 1"),
+            (&UNISWAP_V3_ROUTER_2, "Uniswap V3 Router 2"),
+            (&UNISWAP_V2_ROUTER_1, "Uniswap V2 Router 1"),
+            (&UNISWAP_V2_ROUTER_2, "Uniswap V2 Router 2"),
         ];
         
         let mut router_selectors = HashMap::new();
-        router_selectors.insert(uniswap_v3_router_1, &selectors_v3_r1);
-        router_selectors.insert(uniswap_v3_router_2, &selectors_v3_r2);
-        router_selectors.insert(uniswap_v2_router_1, &selectors_v2_r1);
-        router_selectors.insert(uniswap_v2_router_2, &selectors_v2_r2);
+        router_selectors.insert(UNISWAP_UNIVERSAL_ROUTER, &selectors_uni);
+        router_selectors.insert(UNISWAP_V3_ROUTER_1, &selectors_v3_r1);
+        router_selectors.insert(UNISWAP_V3_ROUTER_2, &selectors_v3_r2);
+        router_selectors.insert(UNISWAP_V2_ROUTER_1, &selectors_v2_r1);
+        router_selectors.insert(UNISWAP_V2_ROUTER_2, &selectors_v2_r2);
         
         if data.input.len() >= 4 {
+            //println!("Input: {:?}", data.input);
+            //println!("To: {:?}", data.to);
             if let Some((router_name, selectors)) = routers.iter().cloned().find_map(|(router, name)| router_selectors.get(router).map(|selectors| (name, selectors))) {
                 let first_four_bytes = &data.input[..4];
+                println!("To: {:?}", data.to);
+                println!("first_four_bytes: {:?}", bytes_to_string(first_four_bytes));
                 for (i, selector) in selectors.iter().enumerate() {
                     let selector_slice = selector.as_ref();
                     if first_four_bytes.eq(selector_slice) {
+                        // we need to handle our logic for the selector calldata here
+                        // 1) split data
+                        // 2) convert the variables
+                        //      - numbers to ethers::types::{I256, U256};
+                        //      - addresses to H160
+                        // 3) ignore multicall but console log
                         println!("{}: Selector {} - {:?}", router_name, i, selector);
                     }
                 }
