@@ -1,3 +1,5 @@
+use ethers::core::types::Bytes;
+
 pub fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())
 }
@@ -14,4 +16,11 @@ pub fn hex_to_bytes(hex: &str) -> Result<Bytes, ()> {
     }
 
     Ok(Bytes::from(bytes))
+}
+
+pub fn get_selectors(selector: &[&str]) -> Vec<Bytes> {
+    selector
+        .iter()
+        .map(|s| hex_to_bytes(s).expect("Invalid selector"))
+        .collect()
 }
