@@ -24,37 +24,7 @@ use std::convert::TryFrom;
 use std::env;
 use std::str;
 use url::Url;
-<<<<<<< HEAD
-=======
-use crate::uni_math::v3;
-use crate::utils::constants::{
-    DAI_ADDRESS, 
-    USDC_ADDRESS, 
-    USDT_ADDRESS, 
-    WETH_ADDRESS, 
-    NULL_ADDRESS,
-    UNISWAP_UNIVERSAL_ROUTER,
-    UNISWAP_V3_ROUTER_1,
-    UNISWAP_V3_ROUTER_2,
-    UNISWAP_V2_ROUTER_1,
-    UNISWAP_V2_ROUTER_2,
-    SELECTOR_UNI,
-    SELECTOR_V3_R1,
-    SELECTOR_V3_R2,
-    SELECTOR_V2_R1,
-    SELECTOR_V2_R2,
-};
-// SELF
-use crate::utils::constants::*;
-use crate::utils::helpers::{
-    print_type_of,
-    hex_to_bytes,
-    get_selectors,
-    bytes_to_string
-};
-
-
->>>>>>> 5089a02c21259008ace93ecc067f919ed630227e
+use std::error::Error;
 
 #[tokio::main]
 pub async fn init() -> Result<()> {
@@ -144,7 +114,6 @@ pub async fn init() -> Result<()> {
         let _to = data.to.clone().unwrap_or(_null_address);
         let _to = data.to.clone().unwrap_or(NULL_ADDRESS.parse::<H160>()?);
 
-<<<<<<< HEAD
         let routers = [
             (&uniswap_uni_router, "Uniswap Univeral Router"),
             (&uniswap_v3_router_1, "Uniswap V3 Router 1"),
@@ -172,36 +141,21 @@ pub async fn init() -> Result<()> {
                     let selector_slice = selector.as_ref();
                     if first_four_bytes.eq(selector_slice) {
                         println!("{}: Selector {} - {:?}", router_name, i, selector);
-=======
-        let mut router: &str = "";
-        let mut _matched = &false;
-        if data.input.len() >= 4 {
-            for _router in router_selectors.keys() {
-                if _to == _router.parse::<H160>()? {
-                    let mut _selector = &bytes_to_string(&data.input[..4]);
-                    if let Some(s) = router_selectors.get(_router) {
-                        if s.contains(&_selector.as_str()) {
-                            router = _router;
-                            _matched = &true;
-                        }
->>>>>>> 5089a02c21259008ace93ecc067f919ed630227e
                     }
                 }
             }
         }
 
-<<<<<<< HEAD
-=======
-        if *_matched {
-            println!("Selector ({:?}) for Router ({:?})", bytes_to_string(&data.input[..4]), router);
-            _matched = &false;
+        // if *_matched {
+        //     println!("Selector ({:?}) for Router ({:?})", bytes_to_string(&data.input[..4]), router);
+        //     _matched = &false;
             //ex (tracing rather then digesting)
             //"4a25d94a", // "swapTokensForExactETH(uint256,uint256,address[],address,uint256)"
             //bytes_to_string(&data.input[4..68])
             //bytes_to_string(&data.input[68..132])
             //bytes_to_string(&data.input[start..end]) // need to handle data size and memory size
                                                 // data can reorder
-        }
+        // }
         // we need to handle our logic for the selector calldata here
         // 1) split data
         // 2) convert the variables
@@ -225,7 +179,6 @@ pub async fn init() -> Result<()> {
         // );
         //println!("{:?}", data);
 
->>>>>>> 5089a02c21259008ace93ecc067f919ed630227e
         // let tx: TypedTransaction = TransactionRequest::pay("vitalik.eth", 1).into();
         // let signature = client.signer().sign_transaction(&tx).await?;
         // let mut bundle = BundleRequest::new();
@@ -234,43 +187,9 @@ pub async fn init() -> Result<()> {
         // );
 
         //let bundle = bundle.set_block(block.number.unwrap()+1).set_simulation_block(block.number.unwrap()).set_simulation_timestamp(0);
-
-        //sending bundle
-        // let pending_bundle = client.inner().send_bundle(&bundle).await?;
     }
-
     Ok(())
 }
-
-/*
-Some(Transaction {
-    hash: 0x736a6a6abea12465de1cc4d73e9d0633203d30170aadf826a77c3f6d154d7732,
-    nonce: 21000,
-    block_hash: None, block_number: None, transaction_index: None,
-    from: 0xaabb8c0deb1270151b9b0776bbf9c890cd877e67,
-    to: Some(0x53844f9577c2334e541aec7df7174ece5df1fcf0),
-    value: 0,
-    gas_price: Some(1000000000),
-    gas: 3000000,
-    input: Bytes(0x9ed93318000000000000000000000000aabb8c0deb1270151b9b0776bbf9c890cd877e67),
-    v: 22310258,
-    r: 52120736319054986821632375614197023773675339739065370707613673340985280157230,
-    s: 2345234057493645648343460763188633139081893918229592397379631637369603903814, transaction_type: Some(0), access_list: None, max_priority_fee_per_gas: None, max_fee_per_gas: None, chain_id: Some(11155111), other: OtherFields { inner: {} } })
-
-    // monitor works
-    // monitor specific address
-    // parse the data to only the functions we want ... bytes4(keccak256(function_name(paramenters)))
-*/
-// Some(Transaction {
-//     hash: 0x69be97c0cda4d872ee5868bfcd7671a8acb915a4f7a7edba7b76f4d08dad7c08,
-//     nonce: 8848,
-//     block_hash: None,
-//     block_number: None,
-//     transaction_index: None,
-//     from: 0x007ab5199b6c57f7aa51bc3d0604a43505501a0c,
-//     to: Some(0x0328adcc26d7ee6a71843bdbf716b7b2b0b4ffa3),
-//     value: 1000000000000000,
-//     gas_price: Some(1500000014),
 //     gas: 21000,
 //     input: Bytes(0x),
 //     v: 0,

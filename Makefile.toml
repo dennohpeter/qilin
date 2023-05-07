@@ -50,8 +50,8 @@ args = ["test"]
 command = "cargo"
 args = [
 	"run",
-	"--bin",
-	"abigen",
+	"--",
+	"abigen"
 ]
 
 [tasks.my-flow]
