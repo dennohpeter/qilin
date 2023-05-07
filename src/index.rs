@@ -115,44 +115,31 @@ pub async fn init() -> Result<()> {
         ];
         
         let mut router_selectors = HashMap::new();
-        router_selectors.insert(UNISWAP_UNIVERSAL_ROUTER, &selectors_uni);
-        router_selectors.insert(UNISWAP_V3_ROUTER_1, &selectors_v3_r1);
-        router_selectors.insert(UNISWAP_V3_ROUTER_2, &selectors_v3_r2);
-        router_selectors.insert(UNISWAP_V2_ROUTER_1, &selectors_v2_r1);
-        router_selectors.insert(UNISWAP_V2_ROUTER_2, &selectors_v2_r2);
+        router_selectors.insert(UNISWAP_UNIVERSAL_ROUTER, &SELECTOR_UNI[..]);
+        router_selectors.insert(UNISWAP_V3_ROUTER_1, &SELECTOR_V3_R1[..]);
+        router_selectors.insert(UNISWAP_V3_ROUTER_2, &SELECTOR_V3_R2[..]);
+        router_selectors.insert(UNISWAP_V2_ROUTER_1, &SELECTOR_V2_R1[..]);
+        router_selectors.insert(UNISWAP_V2_ROUTER_2, &SELECTOR_V2_R2[..]);
         
         if data.input.len() >= 4 {
             for router in router_selectors.keys() {
                 if _to == router.parse::<H160>()? {
-                    println!("router {:?}",router);
-                    // let index = routers.iter().position(|(_router, _name)| _router == router);
-                    // if let Some(i) = index {
-                    //     println!("i: {:?}", i);
-                    // }
+                    //println!("router {:?}",router);
+                    //println!("selector was {:?}", bytes_to_string(&data.input[..4]));
+                    let selector = &bytes_to_string(&data.input[..4]);
+                    if let Some(s) = router_selectors.get(router) {
+                        if s.contains(&selector.as_str()) {
+                            println!("selector ({:?}) for {}", selector, router);
+                        }
+                    }
                 }
             }
-
-            //println!("Input: {:?}", data.input);
-            //println!("To: {:?}", data.to);
-            // if let Some((router_name, selectors)) = routers.iter().cloned().find_map(|(router, name)| router_selectors.get(router).map(|selectors| (name, selectors))) {
-            //     let first_four_bytes = &data.input[..4];
-            //     // println!("To: {:?}", data.to);
-            //     // println!("first_four_bytes: {:?}", bytes_to_string(first_four_bytes));
-            //     for (i, selector) in selectors.iter().enumerate() {
-            //         let selector_slice = selector.as_ref();
-            //         println!("To: {:?}", data.to);
-            //     println!("first_four_bytes: {:?}", bytes_to_string(first_four_bytes));
-            //         if first_four_bytes.eq(selector_slice) {
             //             // we need to handle our logic for the selector calldata here
             //             // 1) split data
             //             // 2) convert the variables
             //             //      - numbers to ethers::types::{I256, U256};
             //             //      - addresses to H160
             //             // 3) ignore multicall but console log
-            //             println!("{}: Selector {} - {:?}", router_name, i, selector);
-            //         }
-            //     }
-            // }
         }
 
 
