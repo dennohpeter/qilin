@@ -19,7 +19,11 @@ pub fn hex_to_bytes(hex: &str) -> Result<Bytes, ()> {
 }
 
 pub fn bytes_to_string(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{:02x}", byte)).collect::<Vec<String>>().join("")
+    bytes
+        .iter()
+        .map(|byte| format!("{:02x}", byte))
+        .collect::<Vec<String>>()
+        .join("")
 }
 
 pub fn get_selectors(selector: &[&str]) -> Vec<Bytes> {

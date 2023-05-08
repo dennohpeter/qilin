@@ -6,9 +6,9 @@
 
 - `cargo make test`
 
-  - this will spin up a local node using anvil, forking from mainnet at block 15686252
+  - this command will spin up a local `Anvil` node, forking block 15686252 from Mainnet, for testing
 
-3. to generate bindings
+3. to generate bindings in `/src/bindings` and ABIs in `/abi`
 
 - `cargo make abigen`
   * need to specify the contract to be generated in src/abigen.rs

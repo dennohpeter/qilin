@@ -52,7 +52,6 @@ mod test {
     use std::error::Error;
     use std::sync::Arc;
 
-
     // pub fn initialize_test() {
     //     INIT.call_once(|| {
     //         setup_anvil().unwrap();
@@ -64,11 +63,12 @@ mod test {
     //     // let _infura_key = env::var("INFURA_API_KEY").clone().unwrap();
     // }
 
-
     #[tokio::test]
     async fn test_swap() -> Result<(), Box<dyn Error>> {
         // create a LocalWallet instance from local node's available account's private key
-        let wallet: LocalWallet = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".parse::<LocalWallet>()?;
+        let wallet: LocalWallet =
+            "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+                .parse::<LocalWallet>()?;
 
         let provider = Provider::<Http>::try_from("http://localhost:8548")?;
         println!("Provider connected to: {}", provider.url());

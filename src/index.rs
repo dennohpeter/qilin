@@ -1,48 +1,40 @@
-use crate::uni_math::v3;
+use crate::abigen;
 use crate::utils::constants::{
     DAI_ADDRESS, NULL_ADDRESS, SELECTOR_UNI, SELECTOR_V2_R1, SELECTOR_V2_R2, SELECTOR_V3_R1,
     SELECTOR_V3_R2, UNISWAP_UNIVERSAL_ROUTER, UNISWAP_V2_ROUTER_1, UNISWAP_V2_ROUTER_2,
     UNISWAP_V3_ROUTER_1, UNISWAP_V3_ROUTER_2, USDC_ADDRESS, USDT_ADDRESS, WETH_ADDRESS,
 };
 use crate::utils::helpers::get_selectors;
-use ethers::core::k256::SecretKey;
-use ethers::core::{
-    rand::thread_rng,
-    types::transaction::eip2718::TypedTransaction,
-    types::{Bytes, Chain, TransactionRequest},
-    utils::hex::FromHex,
-};
-use ethers::etherscan::Client;
 use ethers::prelude::*;
 use ethers::providers::{Provider, Ws};
 use ethers::signers::{LocalWallet, Signer};
-use ethers::solc::resolver::print;
 use ethers_flashbots::{BundleRequest, FlashbotsMiddleware};
 use eyre::Result;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
-use std::str;
-use url::Url;
 use std::error::Error;
-use crate::abigen;
+use url::Url;
 
 #[tokio::main]
 pub async fn init() -> Result<(), Box<dyn Error>> {
-
     let arg: Vec<String> = env::args().collect();
 
-    let first_arg = if arg.len() > 1  {arg[1].clone()} else {String::from("")};
+    let first_arg = if arg.len() > 1 {
+        arg[1].clone()
+    } else {
+        String::from("")
+    };
 
     match first_arg.get(0..1) {
         Some(_) => {
             if first_arg.contains("abigen") {
-                abigen::generate_abigen().await?;
+                abigen::generate_abigen_for_addresses().await?;
                 return Ok(());
             } else {
                 println!("command not recognized");
             }
-        },
+        }
         None => {
             println!("");
         }
@@ -120,7 +112,7 @@ pub async fn init() -> Result<(), Box<dyn Error>> {
         (UNISWAP_V2_ROUTER_1, "Uniswap V2 Router 1"),
         (UNISWAP_V2_ROUTER_2, "Uniswap V2 Router 2"),
     ];
-    
+
     let mut router_selectors = HashMap::new();
     router_selectors.insert(UNISWAP_UNIVERSAL_ROUTER, &SELECTOR_UNI[..]);
     router_selectors.insert(UNISWAP_V3_ROUTER_1, &SELECTOR_V3_R1[..]);
@@ -169,12 +161,12 @@ pub async fn init() -> Result<(), Box<dyn Error>> {
         // if *_matched {
         //     println!("Selector ({:?}) for Router ({:?})", bytes_to_string(&data.input[..4]), router);
         //     _matched = &false;
-            //ex (tracing rather then digesting)
-            //"4a25d94a", // "swapTokensForExactETH(uint256,uint256,address[],address,uint256)"
-            //bytes_to_string(&data.input[4..68])
-            //bytes_to_string(&data.input[68..132])
-            //bytes_to_string(&data.input[start..end]) // need to handle data size and memory size
-                                                // data can reorder
+        //ex (tracing rather then digesting)
+        //"4a25d94a", // "swapTokensForExactETH(uint256,uint256,address[],address,uint256)"
+        //bytes_to_string(&data.input[4..68])
+        //bytes_to_string(&data.input[68..132])
+        //bytes_to_string(&data.input[start..end]) // need to handle data size and memory size
+        // data can reorder
         // }
         // we need to handle our logic for the selector calldata here
         // 1) split data
@@ -183,18 +175,15 @@ pub async fn init() -> Result<(), Box<dyn Error>> {
         //      - addresses to H160
         // 3) ignore multicall but console log
 
-
-
-
         // let _to = data.to.clone().unwrap_or(_null_address.parse::<H160>()?);
         // let _from = data.from;
         // println!(
-        //     "{:#x} | {:#x} | {2: <20} | {3: >10} | {4: <66} | {5: <66}", 
-        //     _to, 
+        //     "{:#x} | {:#x} | {2: <20} | {3: >10} | {4: <66} | {5: <66}",
+        //     _to,
         //     _from,
-        //     data.value, 
-        //     data.gas, 
-        //     data.hash, 
+        //     data.value,
+        //     data.gas,
+        //     data.hash,
         //     data.input
         // );
         //println!("{:?}", data);

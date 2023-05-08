@@ -1,17 +1,11 @@
 use dotenv::dotenv;
+pub mod abigen;
+pub mod bindings;
 pub mod index;
 pub mod uni_math;
 pub mod utils;
-pub mod abigen;
-
-use std::env;
 
 fn main() {
-
     dotenv();
-
-
-
     index::init();
-
 }
