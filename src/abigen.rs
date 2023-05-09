@@ -1,6 +1,7 @@
 use crate::utils::constants::{
     DAI_ADDRESS, UNISWAP_UNIVERSAL_ROUTER, UNISWAP_V2_ROUTER_1, UNISWAP_V2_ROUTER_2,
     UNISWAP_V3_ROUTER_1, UNISWAP_V3_ROUTER_2, USDC_ADDRESS, USDT_ADDRESS, WETH_ADDRESS,
+    UNISWAP_V3_WETH_DAI_LP, UNISWAP_V3_QUOTER, UNISWAP_V3_QUOTER_V2
 };
 use ethers::core::types::Chain;
 use ethers::etherscan::Client;
@@ -50,6 +51,9 @@ pub async fn generate_abigen_for_addresses() -> Result<(), Box<dyn Error>> {
     address_book.insert("UNISWAP_V3_ROUTER_1", UNISWAP_V3_ROUTER_1);
     address_book.insert("UNISWAP_V3_ROUTER_2", UNISWAP_V3_ROUTER_2);
     address_book.insert("UNISWAP_UNIVERSAL_ROUTER", UNISWAP_UNIVERSAL_ROUTER);
+    address_book.insert("UNISWAP_V3_WETH_DAI_LP", UNISWAP_V3_WETH_DAI_LP);
+    address_book.insert("UNISWAP_V3_QUOTER", UNISWAP_V3_QUOTER);
+    address_book.insert("UNISWAP_V3_QUOTER_V2", UNISWAP_V3_QUOTER_V2);
 
     let mut parsed_addr;
     for (name, addr) in address_book {

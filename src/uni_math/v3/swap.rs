@@ -45,35 +45,60 @@ mod test {
         core::utils::Anvil,
         middleware::SignerMiddleware,
         prelude::{abigen, Abigen},
-        providers::{Http, Provider},
-        signers::LocalWallet,
+        providers::{Http, Middleware, Provider},
+        signers::{LocalWallet, Signer},
+        types::H160,
     };
     use std::env;
     use std::error::Error;
     use std::sync::Arc;
+    use crate::bindings::{
+        uniswap_v3_router_1, weth::weth_contract
+    };
+    use crate::utils::constants::{
+        WETH_ADDRESS
+    };
 
-    // pub fn initialize_test() {
-    //     INIT.call_once(|| {
-    //         setup_anvil().unwrap();
-    //     });
-
-    // }
-
-    // fn setup_anvil() -> Result<(), Box<dyn Error>>{
-    //     // let _infura_key = env::var("INFURA_API_KEY").clone().unwrap();
-    // }
+    use ethers::{
+        types::{
+            U256,
+            NameOrAddress
+        },
+        utils::{
+            parse_units
+        },
+    };
 
     #[tokio::test]
     async fn test_swap() -> Result<(), Box<dyn Error>> {
-        // create a LocalWallet instance from local node's available account's private key
-        let wallet: LocalWallet =
-            "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-                .parse::<LocalWallet>()?;
 
-        let provider = Provider::<Http>::try_from("http://localhost:8548")?;
-        println!("Provider connected to: {}", provider.url());
-        SignerMiddleware::new(provider, wallet);
-        assert_eq!(2 + 2, 4);
+        let FIVE_HUNDRED_ETHER: U256 = U256::from(
+            parse_units("500.0", "ether").unwrap()
+        );
+        // create a LocalWallet instance from local node's available account's private key
+        let wallet: LocalWallet = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+            .parse::<LocalWallet>()?;
+        let provider = Provider::<Http>::try_from("http://localhost:8545")?;
+
+        let client = Arc::new(
+            SignerMiddleware::new(
+                provider,
+                wallet
+            )
+        );
+        let clone_client = Arc::clone(&client);
+        let address = clone_client.address();
+        println!("Account Address: {:?}", address);
+
+        let mut balance = clone_client.get_balance(address.clone(), None).await?;
+        println!("Wallet Balance: {:?}", balance);
+
+        let weth_instance = weth_contract::weth::new(WETH_ADDRESS.parse::<H160>()?, client);
+        // let decimals = weth_instance.decimals().call().await?;
+        // deposit 1 ETH to get WETH
+        let _weth = weth_instance.deposit().value(FIVE_HUNDRED_ETHER).send().await?.await?.expect("no receipt found");
+
+
         Ok(())
     }
 }
