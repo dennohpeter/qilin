@@ -1,0 +1,68 @@
+[tasks.format]
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--", "--emit=files"]
+
+[tasks.clean]
+command = "cargo"
+args = ["clean"]
+
+[tasks.build]
+command = "cargo"
+args = ["build"]
+dependencies = ["clean"]
+
+[tasks.test]
+command = "tmux"
+args = [
+	# "attach-session",
+	"kill-session",
+	"-t",
+	"test_session",
+]
+dependencies = [
+	# "clean",
+	"start-anvil",
+	"run-test",
+]
+
+[tasks.start-anvil]
+command = "tmux"
+args = [
+	"new-session",
+	"-d",
+	"-s",
+	"test_session",
+	"anvil",
+	"-f",
+	"https://eth.llamarpc.com",
+	"--chain-id",
+	"1",
+	"--fork-block-number",
+	"15686252",
+]
+
+[tasks.run-test]
+command = "cargo"
+args = [
+	"test",
+	"--",
+	"--nocapture"
+]
+
+[tasks.abigen]
+command = "cargo"
+args = [
+	"run",
+	# "--bin",
+	# "qi-bot",
+	"--",
+	"abigen"
+]
+
+[tasks.my-flow]
+dependencies = [
+    "format",
+    "build",
+    "test"
+]

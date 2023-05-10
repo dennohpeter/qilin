@@ -237,7 +237,9 @@ mod test {
 
     use ethers::types::U256;
 
-    use crate::uni_math::v3::sqrt_price_math::{_get_amount_1_delta, get_next_sqrt_price_from_output, MAX_U160};
+    use crate::uni_math::v3::sqrt_price_math::{
+        _get_amount_1_delta, get_next_sqrt_price_from_output, MAX_U160,
+    };
 
     use super::{_get_amount_0_delta, get_next_sqrt_price_from_input};
 
