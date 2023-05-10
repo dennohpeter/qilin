@@ -39,7 +39,7 @@ args = [
 	"--chain-id",
 	"1",
 	"--fork-block-number",
-	"15686252",
+	"15686253",
 ]
 
 [tasks.run-test]
