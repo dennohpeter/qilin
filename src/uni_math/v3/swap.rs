@@ -48,16 +48,16 @@ pub fn swap(
     tick: i32,
     tick_spacing: i32,
     tick_bitmap: &mut HashMap<i16, U256>,
-    tick_data: &mut HashMap<i16, TickData>, // by calling getPopulatedTicksInWord
+    tick_data: &mut HashMap<i16, TickData>,
 ) -> Result<(I256, I256, U256, u128, i32), Box<dyn Error>> {
-    // if !(sqrt_price_limit_x96 < sqrt_price_x96
-    //     && U256::from(sqrt_price_limit_x96) > tick_math::MIN_SQRT_RATIO
-    //     && zero_for_one
-    //     || sqrt_price_limit_x96 > sqrt_price_x96
-    //         && U256::from(sqrt_price_limit_x96) < tick_math::MAX_SQRT_RATIO)
-    // {
-    //     return Err();
-    // }
+    if !(sqrt_price_limit_x96 < sqrt_price_x96
+        && U256::from(sqrt_price_limit_x96) > tick_math::MIN_SQRT_RATIO
+        && zero_for_one
+        || sqrt_price_limit_x96 > sqrt_price_x96
+            && U256::from(sqrt_price_limit_x96) < tick_math::MAX_SQRT_RATIO)
+    {
+        return Err("swap: limit reached").unwrap();
+    }
 
     let cache = Cache {
         liquidity_start: liquidity,
@@ -104,6 +104,8 @@ pub fn swap(
             Err(e) => return Err(Box::new(e)),
         };
 
+        step.sqrt_price_next_x96 = tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
+
         if zero_for_one == exact_input {
             amount0 = amount_specified - state.amount_specified_remaining;
             amount1 = state.amount_calculated;
@@ -126,16 +128,15 @@ pub fn swap(
             fee,
         ) {
             Ok((sqrt_price_x96, amount_in, amount_out, fee_amount)) => {
-                step.sqrt_price_next_x96 = sqrt_price_limit_x96;
+                step.sqrt_price_next_x96 = sqrt_price_x96;
                 step.amount_in = amount_in;
                 step.amount_out = amount_out;
-                step.fee_amount = U256::from(0);
+                step.fee_amount = fee_amount;
             }
 
             Err(e) => return Err(Box::new(e)),
         }
 
-        // final calculations
         if exact_input {
             state.amount_specified_remaining -= I256::from_dec_str(&step.amount_in.to_string())
                 .unwrap()
@@ -164,17 +165,19 @@ pub fn swap(
                     liquidity_net = -liquidity_net;
                 }
 
-                state.liquidity =
-                    liquidity_math::add_delta(state.liquidity, liquidity_net as i128)?;
-            }
+                state.liquidity = liquidity_math::add_delta(state.liquidity, liquidity_net as i128)?;
+
+            };
+
             state.tick = if zero_for_one {
                 step.tick_next - 1
             } else {
                 step.tick_next
             };
+
         } else if state.sqrt_price_x96 != step.sqrt_price_start_x96 {
             state.tick = tick_math::get_tick_at_sqrt_ratio(state.sqrt_price_x96)?;
-        }
+        };
 
         (amount0, amount1) = if zero_for_one == exact_input {
             (
