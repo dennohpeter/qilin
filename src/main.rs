@@ -318,7 +318,8 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
 
 7) using token-in & token-out data, determine the effect on the pool reserves
     - simulate the effect if the swap goes through and get the ending pool state
-        - for V2 and V3
+        - for V2
+        -✅ V3
 
 
     Resource: UniV3 Math: https://crates.io/crates/uniswap_v3_math

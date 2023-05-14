@@ -1,42 +1,201 @@
 use super::error::UniswapV3MathError;
+use super::{liquidity_math, swap_step, tick_bitmap, tick_math};
 use ethers::types::{I256, U256};
-use ethers::{
-    core::utils::Anvil,
-    middleware::SignerMiddleware,
-    prelude::{abigen, Abigen},
-    providers::{Http, Provider},
-    signers::LocalWallet,
-};
-use std::env;
+use std::collections::HashMap;
 use std::error::Error;
-use std::sync::Arc;
+use uint::construct_uint;
 
-// pub fn v3_swap(
-//     zero_2_one: bool,
-//     amount_speficied: I256,
-//     sqrt_price_limit_x96: U256
-// ) -> Result<(), Box<dyn Error>> {
+construct_uint! {
+    pub struct U160(3);
+}
 
-// //     // steps:
-// //     //  1)  determine exactInput or not: if amount_speficied > 0 then yes, otherwise no
-// //     //  2)  cache the starting liquidity and tick
-// //     //  3)  construct the initial swapping state:
-// //     //      - state = {
-// //     //                  "amountSpecifiedRemaining": amountSpecified,
-// //     //                  "amountCalculated": 0,
-// //     //                  "sqrtPriceX96": self.sqrt_price_x96,
-// //     //                  "tick": self.tick,
-// //     //                  "liquidity": cache["liquidityStart"],
-// //     //                 }
-// //     //  4) start walking through the liquidity ranges. Stop if either 1) each the limit or 2) amount_speficied is exhausted
-// //     //      - find the next available tick
-// //     //      - ensure don't overshoot the tick max/min value
-// //     //      - compute values to swap to the target tick, price limit, or point where input/output amount is exhausted
-// //     //      - shift to next tick if we reach the next price
-// //     //      - if not exhausted, continure
+struct Cache {
+    liquidity_start: u128,
+    // tick_cumulative: i64,
+}
 
-//         Ok(())
-// }
+struct State {
+    amount_specified_remaining: I256,
+    amount_calculated: I256,
+    sqrt_price_x96: U256,
+    tick: i32,
+    liquidity: u128,
+}
+
+struct Step {
+    sqrt_price_start_x96: U256,
+    tick_next: i32,
+    initialized: bool,
+    sqrt_price_next_x96: U256,
+    amount_in: U256,
+    amount_out: U256,
+    fee_amount: U256,
+}
+
+pub struct TickData {
+    tick: i32,
+    liquidity_net: i32,
+    // liquidity_gross: i32,
+}
+
+pub fn swap(
+    zero_for_one: bool,
+    amount_specified: I256,
+    sqrt_price_limit_x96: U256,
+    liquidity: u128,
+    sqrt_price_x96: U256,
+    fee: u32,
+    tick: i32,
+    tick_spacing: i32,
+    tick_bitmap: &mut HashMap<i16, U256>,
+    tick_data: &mut HashMap<i16, TickData>, // by calling getPopulatedTicksInWord
+) -> Result<(I256, I256, U256, u128, i32), Box<dyn Error>> {
+    // if !(sqrt_price_limit_x96 < sqrt_price_x96
+    //     && U256::from(sqrt_price_limit_x96) > tick_math::MIN_SQRT_RATIO
+    //     && zero_for_one
+    //     || sqrt_price_limit_x96 > sqrt_price_x96
+    //         && U256::from(sqrt_price_limit_x96) < tick_math::MAX_SQRT_RATIO)
+    // {
+    //     return Err();
+    // }
+
+    let cache = Cache {
+        liquidity_start: liquidity,
+        // tick_cumulative: 0,
+    };
+
+    let exact_input = amount_specified > I256::from(0);
+
+    let mut state = State {
+        amount_specified_remaining: amount_specified,
+        amount_calculated: I256::from(0),
+        sqrt_price_x96: sqrt_price_x96,
+        tick: tick,
+        liquidity: cache.liquidity_start,
+    };
+
+    let mut amount0 = I256::from(0);
+    let mut amount1 = I256::from(0);
+    while state.amount_specified_remaining != I256::from(0)
+        && state.sqrt_price_x96 != sqrt_price_limit_x96
+    {
+        let mut step = Step {
+            sqrt_price_start_x96: state.sqrt_price_x96,
+            tick_next: 0,
+            initialized: false,
+            sqrt_price_next_x96: U256::from(0),
+            amount_in: U256::from(0),
+            amount_out: U256::from(0),
+            fee_amount: U256::from(0),
+        };
+
+        step.sqrt_price_start_x96 = state.sqrt_price_x96;
+
+        match tick_bitmap::next_initialized_tick_within_one_word(
+            &tick_bitmap,
+            state.tick,
+            tick_spacing,
+            zero_for_one,
+        ) {
+            Ok((tick_next, initialized)) => {
+                step.tick_next = tick_next;
+                step.initialized = initialized;
+            }
+            Err(e) => return Err(Box::new(e)),
+        };
+
+        if zero_for_one == exact_input {
+            amount0 = amount_specified - state.amount_specified_remaining;
+            amount1 = state.amount_calculated;
+        } else {
+            amount0 = state.amount_calculated;
+            amount1 = amount_specified - state.amount_specified_remaining;
+        };
+
+        match swap_step::compute_swap_step(
+            state.sqrt_price_x96,
+            sqrt_price_limit_x96,
+            if (zero_for_one && step.sqrt_price_next_x96 < sqrt_price_limit_x96)
+                || (!zero_for_one && step.sqrt_price_next_x96 > sqrt_price_limit_x96)
+            {
+                sqrt_price_limit_x96.low_u128()
+            } else {
+                step.sqrt_price_next_x96.low_u128()
+            },
+            I256::from(state.liquidity),
+            fee,
+        ) {
+            Ok((sqrt_price_x96, amount_in, amount_out, fee_amount)) => {
+                step.sqrt_price_next_x96 = sqrt_price_limit_x96;
+                step.amount_in = amount_in;
+                step.amount_out = amount_out;
+                step.fee_amount = U256::from(0);
+            }
+
+            Err(e) => return Err(Box::new(e)),
+        }
+
+        // final calculations
+        if exact_input {
+            state.amount_specified_remaining -= I256::from_dec_str(&step.amount_in.to_string())
+                .unwrap()
+                + I256::from_dec_str(&step.fee_amount.to_string()).unwrap();
+            state.amount_calculated =
+                state.amount_calculated - I256::from_dec_str(&step.amount_out.to_string()).unwrap();
+        } else {
+            state.amount_specified_remaining +=
+                I256::from_dec_str(&step.amount_out.to_string()).unwrap();
+            state.amount_calculated = state.amount_calculated
+                + I256::from_dec_str(&step.amount_in.to_string()).unwrap()
+                + I256::from_dec_str(&step.fee_amount.to_string()).unwrap();
+        }
+
+        step.sqrt_price_next_x96 = tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
+
+        // shift tick if we reached the next price
+        if state.sqrt_price_x96 == step.sqrt_price_next_x96 {
+            // if the tick is initialized, run the tick transition
+            if step.initialized {
+                let (next_word, _) = tick_bitmap::position(step.tick_next);
+                let tick_ = tick_data.get(&next_word).ok_or("Failed to get tick data")?;
+                let mut liquidity_net = tick_.liquidity_net;
+
+                if zero_for_one {
+                    liquidity_net = -liquidity_net;
+                }
+
+                state.liquidity =
+                    liquidity_math::add_delta(state.liquidity, liquidity_net as i128)?;
+            }
+            state.tick = if zero_for_one {
+                step.tick_next - 1
+            } else {
+                step.tick_next
+            };
+        } else if state.sqrt_price_x96 != step.sqrt_price_start_x96 {
+            state.tick = tick_math::get_tick_at_sqrt_ratio(state.sqrt_price_x96)?;
+        }
+
+        (amount0, amount1) = if zero_for_one == exact_input {
+            (
+                amount_specified - state.amount_specified_remaining,
+                state.amount_calculated,
+            )
+        } else {
+            (
+                state.amount_calculated,
+                amount_specified - state.amount_specified_remaining,
+            )
+        };
+    }
+    return Ok((
+        amount0,
+        amount1,
+        state.sqrt_price_x96,
+        state.liquidity,
+        state.tick,
+    ));
+}
 
 #[cfg(test)]
 mod test {
@@ -192,9 +351,13 @@ mod test {
             _,
             _,
         ) = _weth_dai_lp.slot_0().call().await?;
-        println!("WETH/DAI V3 Pool sqrtPriceX96 after trade: {:?}", sqrt_price_x_96_after);
+        println!(
+            "WETH/DAI V3 Pool sqrtPriceX96 after trade: {:?}",
+            sqrt_price_x_96_after
+        );
         println!("WETH/DAI V3 Pool Current Tick: {:?}", tick_after);
 
         Ok(())
     }
 }
+//paulclaudius
