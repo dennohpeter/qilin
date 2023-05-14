@@ -1,4 +1,5 @@
 use ethers::core::types::Bytes;
+use std::error::Error;
 
 pub fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())
@@ -31,4 +32,15 @@ pub fn get_selectors(selector: &[&str]) -> Vec<Bytes> {
         .iter()
         .map(|s| hex_to_bytes(s).expect("Invalid selector"))
         .collect()
+}
+
+pub fn decode_revert_bytes(data: &[u8]) -> Result<String, Box<dyn Error>> {
+    let bytes = hex::decode(&data[130..])?;
+    match std::str::from_utf8(&bytes) {
+        Ok(s) => {
+            println!("Decoded string: {}", s);
+            Ok(s.to_string())
+        }
+        Err(e) => return Err(Box::new(e)),
+    }
 }

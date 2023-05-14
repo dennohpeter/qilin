@@ -87,10 +87,9 @@ pub fn swap(
 
         step.sqrt_price_start_x96 = state.sqrt_price_x96;
 
-        let mut keep_searching: bool = true;
+        let mut keep_searching = true;
 
         while keep_searching {
-
             match tick_bitmap::next_initialized_tick_within_one_word(
                 &tick_bitmap,
                 state.tick,
@@ -132,7 +131,7 @@ pub fn swap(
             fee,
         ) {
             Ok((sqrt_price_x96, amount_in, amount_out, fee_amount)) => {
-                step.sqrt_price_next_x96 = sqrt_price_x96;
+                state.sqrt_price_x96 = sqrt_price_x96;
                 step.amount_in = amount_in;
                 step.amount_out = amount_out;
                 step.fee_amount = fee_amount;
@@ -237,7 +236,6 @@ mod test {
 
         // create a singermiddleware that wraps default provider and wallet
         let client = Arc::new(SignerMiddleware::new(provider, wallet));
-        let clone_client = Arc::clone(&client);
 
         // get account address
         let address = Arc::clone(&client).address();
@@ -315,19 +313,10 @@ mod test {
             fee: 3000,                  //fee
             recipient: address.clone(), //recipient
             deadline: U256::MAX,
-            amount_in: U256::from(parse_units("50.0", "ether").unwrap()), //amount in
-            amount_out_minimum: U256::from(0),                            // amount out minimum
-            sqrt_price_limit_x96: U256::from(0),                          //deadline
+            amount_in: U256::from(parse_units("50.0", "ether").unwrap()),
+            amount_out_minimum: U256::from(0),
+            sqrt_price_limit_x96: U256::from(0),
         };
-
-        // let data = "08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000135472616e73616374696f6e20746f6f206f6c6400000000000000000000000000";
-        // let data = "08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000035354460000000000000000000000000000000000000000000000000000000000";
-        // let bytes = hex::decode(&data[130..])?;
-        // if let Ok(s) = std::str::from_utf8(&bytes) {
-        //     println!("Decoded string: {}", s);
-        // } else {
-        //     println!("Could not decode string");
-        // }
 
         let amount_out_res = uni_v3_router_1
             .exact_input_single(input_param)
