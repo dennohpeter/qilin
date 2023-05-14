@@ -1,13 +1,8 @@
-use super::error::UniswapV3MathError;
+// use super::error::UniswapV3MathError;
 use super::{liquidity_math, swap_step, tick_bitmap, tick_math};
 use ethers::types::{I256, U256};
 use std::collections::HashMap;
 use std::error::Error;
-use uint::construct_uint;
-
-construct_uint! {
-    pub struct U160(3);
-}
 
 struct Cache {
     liquidity_start: u128,
@@ -33,7 +28,7 @@ struct Step {
 }
 
 pub struct TickData {
-    tick: i32,
+    // tick: i32,
     liquidity_net: i32,
     // liquidity_gross: i32,
 }
@@ -76,6 +71,7 @@ pub fn swap(
 
     let mut amount0 = I256::from(0);
     let mut amount1 = I256::from(0);
+
     while state.amount_specified_remaining != I256::from(0)
         && state.sqrt_price_x96 != sqrt_price_limit_x96
     {
@@ -91,28 +87,36 @@ pub fn swap(
 
         step.sqrt_price_start_x96 = state.sqrt_price_x96;
 
-        match tick_bitmap::next_initialized_tick_within_one_word(
-            &tick_bitmap,
-            state.tick,
-            tick_spacing,
-            zero_for_one,
-        ) {
-            Ok((tick_next, initialized)) => {
-                step.tick_next = tick_next;
-                step.initialized = initialized;
-            }
-            Err(e) => return Err(Box::new(e)),
+        let mut keep_searching: bool = true;
+
+        while keep_searching {
+
+            match tick_bitmap::next_initialized_tick_within_one_word(
+                &tick_bitmap,
+                state.tick,
+                tick_spacing,
+                zero_for_one,
+            ) {
+                // TODO: if tick is in next word, we need to update the word in the bitmap
+                Ok((tick_next, initialized)) => {
+                    step.tick_next = tick_next;
+                    step.initialized = initialized;
+                    if initialized {
+                        keep_searching = false;
+                    };
+                }
+                Err(e) => return Err(Box::new(e)),
+            };
+        }
+
+        // prevent overshooting
+        if step.tick_next < tick_math::MIN_TICK {
+            step.tick_next = tick_math::MIN_TICK;
+        } else if step.tick_next > tick_math::MAX_TICK {
+            step.tick_next = tick_math::MAX_TICK;
         };
 
         step.sqrt_price_next_x96 = tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
-
-        if zero_for_one == exact_input {
-            amount0 = amount_specified - state.amount_specified_remaining;
-            amount1 = state.amount_calculated;
-        } else {
-            amount0 = state.amount_calculated;
-            amount1 = amount_specified - state.amount_specified_remaining;
-        };
 
         match swap_step::compute_swap_step(
             state.sqrt_price_x96,
@@ -165,8 +169,8 @@ pub fn swap(
                     liquidity_net = -liquidity_net;
                 }
 
-                state.liquidity = liquidity_math::add_delta(state.liquidity, liquidity_net as i128)?;
-
+                state.liquidity =
+                    liquidity_math::add_delta(state.liquidity, liquidity_net as i128)?;
             };
 
             state.tick = if zero_for_one {
@@ -174,7 +178,6 @@ pub fn swap(
             } else {
                 step.tick_next
             };
-
         } else if state.sqrt_price_x96 != step.sqrt_price_start_x96 {
             state.tick = tick_math::get_tick_at_sqrt_ratio(state.sqrt_price_x96)?;
         };
@@ -211,23 +214,15 @@ mod test {
         DAI_ADDRESS, UNISWAP_V3_ROUTER_1, UNISWAP_V3_WETH_DAI_LP, WETH_ADDRESS,
     };
     use ethers::{
-        abi::AbiDecode,
-        core::utils::Anvil,
         middleware::SignerMiddleware,
-        prelude::{abigen, Abigen},
         providers::{Http, Middleware, Provider},
-        signers::{LocalWallet, Signer},
+        signers::LocalWallet,
         types::{TransactionReceipt, H160},
     };
-    use std::env;
     use std::error::Error;
     use std::sync::Arc;
 
-    use ethers::{
-        types::{NameOrAddress, U256},
-        utils::parse_units,
-    };
-    use hex;
+    use ethers::{types::U256, utils::parse_units};
 
     use crate::uni_math::v3::utils::v3_get_ticks;
 
@@ -340,7 +335,7 @@ mod test {
             .await?
             .await?;
 
-        // println!("{:?}", amount_out_res);
+        println!("{:?}", amount_out_res);
 
         //get after swap pool info
         let (

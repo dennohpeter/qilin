@@ -7,7 +7,6 @@ use ethers::core::types::Chain;
 use ethers::etherscan::Client;
 use ethers::prelude::Abigen;
 use ethers::types::H160;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
