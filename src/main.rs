@@ -8,7 +8,11 @@ use crate::utils::constants::{
     SELECTOR_V3_R2, UNISWAP_UNIVERSAL_ROUTER, UNISWAP_V2_ROUTER_1, UNISWAP_V2_ROUTER_2,
     UNISWAP_V3_ROUTER_1, UNISWAP_V3_ROUTER_2, USDC_ADDRESS, USDT_ADDRESS, WETH_ADDRESS,
 };
-use crate::utils::helpers::get_selectors;
+use ethers::core::{
+    types::Bytes,
+    types::U256,
+    utils::hex
+};
 use ethers::prelude::*;
 use ethers::providers::{Provider, Ws};
 use ethers::signers::{LocalWallet, Signer};
@@ -19,6 +23,12 @@ use std::convert::TryFrom;
 use std::env;
 use std::error::Error;
 use url::Url;
+use crate::utils::helpers::{
+    print_type_of,
+    hex_to_bytes,
+    get_selectors,
+    bytes_to_string
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -48,23 +58,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // data collection
     let _infura_key = env::var("INFURA_API_KEY").clone().unwrap();
     let _etherscan_key = env::var("ETHERSCAN_API_KEY").clone().unwrap();
-    let _dai_address = DAI_ADDRESS.parse::<H160>()?;
-    let _usdc_address = USDC_ADDRESS.parse::<H160>()?;
-    let _usdt_address = USDT_ADDRESS.parse::<H160>()?;
-    let _weth_address = WETH_ADDRESS.parse::<H160>()?;
-    let _null_address = NULL_ADDRESS.parse::<H160>()?;
-
-    let uniswap_v3_router_1 = UNISWAP_V3_ROUTER_1.parse::<H160>()?;
-    let uniswap_v3_router_2 = UNISWAP_V3_ROUTER_2.parse::<H160>()?;
-    let uniswap_v2_router_1 = UNISWAP_V2_ROUTER_1.parse::<H160>()?;
-    let uniswap_v2_router_2 = UNISWAP_V2_ROUTER_2.parse::<H160>()?;
-    let uniswap_uni_router = UNISWAP_UNIVERSAL_ROUTER.parse::<H160>()?;
-
-    let selectors_uni = get_selectors(&SELECTOR_UNI);
-    let selectors_v3_r1 = get_selectors(&SELECTOR_V3_R1);
-    let selectors_v3_r2 = get_selectors(&SELECTOR_V3_R2);
-    let selectors_v2_r1 = get_selectors(&SELECTOR_V2_R1);
-    let selectors_v2_r2 = get_selectors(&SELECTOR_V2_R2);
 
     // for WETH address need to check current request and pool via weth9 function
     // from router contract
@@ -125,39 +118,103 @@ async fn main() -> Result<(), Box<dyn Error>> {
     router_selectors.insert(UNISWAP_V2_ROUTER_1, &SELECTOR_V2_R1[..]);
     router_selectors.insert(UNISWAP_V2_ROUTER_2, &SELECTOR_V2_R2[..]);
 
+
+    let _input = "0xfb3bdb41000000000000000000000000000000000000000000000000000000000007a1200000000000000000000000000000000000000000000000000000000000000080000000000000000000000000dac17f958d2ee523a2206206994597c13d831ec70000000000000000000000000000000000000000000000000000000005f5e0ff0000000000000000000000000000000000000000000000000000000000000006000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+    let input = Bytes::from(hex::decode(&_input[2..])?);
+    // fb3bdb41
+    // swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline)
+    let _amount_out = U256::from_big_endian(&input[4..36]);
+    let _to = hex::encode(&input[36..68]);
+    let _deadline = U256::from_big_endian(&input[68..100]);
+    let _path_size = U256::from_big_endian(&input[100..132]);
+    //let _path = hex::encode(&input[132..(132+32*(_path_size).as_usize())]);
+
+    // 7ff36ab5
+    // swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
+    let amount_out_min = U256::from_big_endian(&input[4..36]);
+    let _to = hex::encode(&input[36..68]);
+    let _deadline = U256::from_big_endian(&input[68..100]);
+    let _path_size = U256::from_big_endian(&input[100..132]);
+    let _path = hex::encode(&input[132..(132+32*(_path_size).as_usize())]);
+
+    // 18cbafe5
+    // swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
+    let _amount_in = U256::from_big_endian(&input[4..36]);
+    let _amount_out_min = U256::from_big_endian(&input[36..68]);
+    let _to = hex::encode(&input[68..100]);
+    let _deadline = U256::from_big_endian(&input[100..132]);
+    let _path_size = U256::from_big_endian(&input[132..164]);
+    let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+
+    // 38ed1739
+    // function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
+    let _amount_in = U256::from_big_endian(&input[4..36]);
+    let _amount_out_min = U256::from_big_endian(&input[36..68]);
+    let _to = hex::encode(&input[68..100]);
+    let _deadline = U256::from_big_endian(&input[100..132]);
+    let _path_size = U256::from_big_endian(&input[132..164]);
+    let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+
+    // 4a25d94a
+    // swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
+    let _amount_out = U256::from_big_endian(&input[4..36]);
+    let _amount_in_max = U256::from_big_endian(&input[36..68]);
+    let _to = hex::encode(&input[68..100]);
+    let _deadline = U256::from_big_endian(&input[100..132]);
+    let _path_size = U256::from_big_endian(&input[132..164]);
+    let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+
+    // 8803dbee
+    // function swapTokensForExactTokens(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
+    let _amount_out = U256::from_big_endian(&input[4..36]);
+    let _amount_in_max = U256::from_big_endian(&input[36..68]);
+    let _to = hex::encode(&input[68..100]);
+    let _deadline = U256::from_big_endian(&input[100..132]);
+    let _path_size = U256::from_big_endian(&input[132..164]);
+    let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+
+    // V2 Only
+    // b6f9de95
+    // swapExactETHForTokensSupportingFeeOnTransferTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
+    let amount_out_min = U256::from_big_endian(&input[4..36]);
+    let _to = hex::encode(&input[36..68]);
+    let _deadline = U256::from_big_endian(&input[68..100]);
+    let _path_size = U256::from_big_endian(&input[100..132]);
+    let _path = hex::encode(&input[132..(132+32*(_path_size).as_usize())]);
+
+    // 791ac947
+    // swapExactTokensForETHSupportingFeeOnTransferTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
+    let _amount_in = U256::from_big_endian(&input[4..36]);
+    let _amount_out_min = U256::from_big_endian(&input[36..68]);
+    let _to = hex::encode(&input[68..100]);
+    let _deadline = U256::from_big_endian(&input[100..132]);
+    let _path_size = U256::from_big_endian(&input[132..164]);
+    let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+
+
+    println!("amountOut: {:?}", _amount_out);
+    println!("to: {:?}", _to);
+    println!("deadline: {:?}", _deadline);
+    //println!("path: {:?}", _path);
+    //println!("z2: {:?}", U256::from_big_endian(&input[132..164]));
+    println!("Input: {:?}", hex::encode(&input[4..]));
+
     while let Some(tx_hash) = stream.next().await {
         let msg = ws_provider.get_transaction(tx_hash).await?;
         let data = msg.clone().unwrap_or(Transaction::default());
-        let _to = data.to.clone().unwrap_or(_null_address);
-        let _to = data.to.clone().unwrap_or(NULL_ADDRESS.parse::<H160>()?);
+        let target = data.to.clone().unwrap_or(NULL_ADDRESS.parse::<H160>()?);
 
-        let routers = [
-            (&uniswap_uni_router, "Uniswap Univeral Router"),
-            (&uniswap_v3_router_1, "Uniswap V3 Router 1"),
-            (&uniswap_v3_router_2, "Uniswap V3 Router 2"),
-            (&uniswap_v2_router_1, "Uniswap V2 Router 1"),
-            (&uniswap_v2_router_2, "Uniswap V2 Router 2"),
-        ];
-
-        let mut router_selectors = HashMap::new();
-        router_selectors.insert(uniswap_v3_router_1, &selectors_v3_r1);
-        router_selectors.insert(uniswap_v3_router_2, &selectors_v3_r2);
-        router_selectors.insert(uniswap_v2_router_1, &selectors_v2_r1);
-        router_selectors.insert(uniswap_v2_router_2, &selectors_v2_r2);
-
+        let mut router: &str = "";
+        let mut _matched = &false;
         if data.input.len() >= 4 {
-            if let Some((router_name, selectors)) =
-                routers.iter().cloned().find_map(|(router, name)| {
-                    router_selectors
-                        .get(router)
-                        .map(|selectors| (name, selectors))
-                })
-            {
-                let first_four_bytes = &data.input[..4];
-                for (i, selector) in selectors.iter().enumerate() {
-                    let selector_slice = selector.as_ref();
-                    if first_four_bytes.eq(selector_slice) {
-                        println!("{}: Selector {} - {:?}", router_name, i, selector);
+            for _router in router_selectors.keys() {
+                if target == _router.parse::<H160>()? {
+                    let mut _selector = &bytes_to_string(&data.input[..4]);
+                    if let Some(s) = router_selectors.get(_router) {
+                        if s.contains(&_selector.as_str()) {
+                            router = _router;
+                            _matched = &true;
+                        }
                     }
                 }
             }
@@ -318,8 +375,7 @@ T1 - Sell A buy B on V3 => sell B  buy A on V2
 
 7) using token-in & token-out data, determine the effect on the pool reserves
     - simulate the effect if the swap goes through and get the ending pool state
-        - for V2
-        -✅ V3
+        - for V2 and V3
 
 
     Resource: UniV3 Math: https://crates.io/crates/uniswap_v3_math
@@ -367,6 +423,11 @@ V2 ROUTER02 SELECTORS TO WATCH
 }
 
 
+
+
+
+
+
 Transaction {
     hash: 0x872be985300821f1c7c8d099b346276948bc84354a642ff3ecd774d602246b60,
     nonce: 41,
@@ -389,3 +450,4 @@ Transaction {
     chain_id: Some(1),
     other: OtherFields { inner: {} } }
 */
+
