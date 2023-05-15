@@ -21,3 +21,10 @@ pub fn u256_to_ruint(u: U256) -> ruint::Uint<256, 4> {
 pub fn ruint_to_u256(r: Uint<256, 4>) -> U256 {
     U256::from_little_endian(&r.as_le_bytes())
 }
+
+pub fn v3_get_ticks(current_tick: i32, tick_spacing: i32) -> (i32, i32) {
+    return (
+        tick_spacing * (current_tick / tick_spacing),
+        tick_spacing * ((current_tick / tick_spacing) + 1),
+    );
+}

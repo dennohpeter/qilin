@@ -4,6 +4,7 @@ pub mod uniswap_v2_router_1;
 pub mod uniswap_v2_router_2;
 pub mod uniswap_v3_router_1;
 pub mod uniswap_v3_router_2;
+pub mod uniswap_v3_weth_dai_lp;
 pub mod usdc;
 pub mod usdt;
 pub mod weth;
