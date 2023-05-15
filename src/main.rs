@@ -141,7 +141,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
     let _amount_in = U256::from_big_endian(&input[4..36]);
     let _amount_out_min = U256::from_big_endian(&input[36..68]);
-    let _to = hex::encode(&input[68..100]);,
+    let _to = hex::encode(&input[68..100]);
     let _deadline = U256::from_big_endian(&input[100..132]);
     let _path_size = U256::from_big_endian(&input[132..164]);
     let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
@@ -150,7 +150,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
     let _amount_in = U256::from_big_endian(&input[4..36]);
     let _amount_out_min = U256::from_big_endian(&input[36..68]);
-    let _to = hex::encode(&input[68..100]);,
+    let _to = hex::encode(&input[68..100]);
     let _deadline = U256::from_big_endian(&input[100..132]);
     let _path_size = U256::from_big_endian(&input[132..164]);
     let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
@@ -159,7 +159,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
     let _amount_out = U256::from_big_endian(&input[4..36]);
     let _amount_in_max = U256::from_big_endian(&input[36..68]);
-    let _to = hex::encode(&input[68..100]);,
+    let _to = hex::encode(&input[68..100]);
     let _deadline = U256::from_big_endian(&input[100..132]);
     let _path_size = U256::from_big_endian(&input[132..164]);
     let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
@@ -168,7 +168,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // function swapTokensForExactTokens(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
     let _amount_out = U256::from_big_endian(&input[4..36]);
     let _amount_in_max = U256::from_big_endian(&input[36..68]);
-    let _to = hex::encode(&input[68..100]);,
+    let _to = hex::encode(&input[68..100]);
     let _deadline = U256::from_big_endian(&input[100..132]);
     let _path_size = U256::from_big_endian(&input[132..164]);
     let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
@@ -186,7 +186,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // swapExactTokensForETHSupportingFeeOnTransferTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
     let _amount_in = U256::from_big_endian(&input[4..36]);
     let _amount_out_min = U256::from_big_endian(&input[36..68]);
-    let _to = hex::encode(&input[68..100]);,
+    let _to = hex::encode(&input[68..100]);
     let _deadline = U256::from_big_endian(&input[100..132]);
     let _path_size = U256::from_big_endian(&input[132..164]);
     let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
