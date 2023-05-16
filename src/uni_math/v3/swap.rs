@@ -17,6 +17,7 @@ struct State {
     liquidity: u128,
 }
 
+#[derive(Default)]
 struct Step {
     sqrt_price_start_x96: U256,
     tick_next: i32,
@@ -45,44 +46,43 @@ pub fn swap(
     tick_bitmap: &mut HashMap<i16, U256>,
     tick_data: &mut HashMap<i16, TickData>,
 ) -> Result<(I256, I256, U256, u128, i32), Box<dyn Error>> {
-    if !(sqrt_price_limit_x96 < sqrt_price_x96
-        && U256::from(sqrt_price_limit_x96) > tick_math::MIN_SQRT_RATIO
-        && zero_for_one
-        || sqrt_price_limit_x96 > sqrt_price_x96
-            && U256::from(sqrt_price_limit_x96) < tick_math::MAX_SQRT_RATIO)
-    {
-        return Err("swap: limit reached").unwrap();
-    }
+
+    if sqrt_price_limit_x96 == U256::zero() {
+        if zero_for_one {
+            tick_math::MIN_SQRT_RATIO +1
+        } else {
+            tick_math::MAX_SQRT_RATIO - 1
+        }
+    } else {
+        sqrt_price_limit_x96
+    };
 
     let cache = Cache {
         liquidity_start: liquidity,
         // tick_cumulative: 0,
     };
 
-    let exact_input = amount_specified > I256::from(0);
+    let exact_input = amount_specified > I256::zero();
 
     let mut state = State {
         amount_specified_remaining: amount_specified,
-        amount_calculated: I256::from(0),
+        amount_calculated: I256::zero(),
         sqrt_price_x96: sqrt_price_x96,
         tick: tick,
         liquidity: cache.liquidity_start,
     };
 
-    let mut amount0 = I256::from(0);
-    let mut amount1 = I256::from(0);
-
-    while state.amount_specified_remaining != I256::from(0)
+    while state.amount_specified_remaining != I256::zero()
         && state.sqrt_price_x96 != sqrt_price_limit_x96
     {
         let mut step = Step {
             sqrt_price_start_x96: state.sqrt_price_x96,
             tick_next: 0,
             initialized: false,
-            sqrt_price_next_x96: U256::from(0),
-            amount_in: U256::from(0),
-            amount_out: U256::from(0),
-            fee_amount: U256::from(0),
+            sqrt_price_next_x96: U256::zero(),
+            amount_in: U256::zero(),
+            amount_out: U256::zero(),
+            fee_amount: U256::zero(),
         };
 
         step.sqrt_price_start_x96 = state.sqrt_price_x96;
@@ -98,7 +98,8 @@ pub fn swap(
             ) {
                 // TODO: if tick is in next word, we need to update the word in the bitmap
                 Ok((tick_next, initialized)) => {
-                    step.tick_next = tick_next;
+                    step.tick_next = tick_next.clamp(tick_math::MIN_TICK, tick_math::MAX_TICK);
+                    step.sqrt_price_next_x96 = tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
                     step.initialized = initialized;
                     if initialized {
                         keep_searching = false;
@@ -115,18 +116,16 @@ pub fn swap(
             step.tick_next = tick_math::MAX_TICK;
         };
 
-        step.sqrt_price_next_x96 = tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
-
         match swap_step::compute_swap_step(
             state.sqrt_price_x96,
-            sqrt_price_limit_x96,
             if (zero_for_one && step.sqrt_price_next_x96 < sqrt_price_limit_x96)
                 || (!zero_for_one && step.sqrt_price_next_x96 > sqrt_price_limit_x96)
             {
-                sqrt_price_limit_x96.low_u128()
+                sqrt_price_limit_x96
             } else {
-                step.sqrt_price_next_x96.low_u128()
+                step.sqrt_price_next_x96
             },
+            state.liquidity,
             I256::from(state.liquidity),
             fee,
         ) {
@@ -173,7 +172,7 @@ pub fn swap(
             };
 
             state.tick = if zero_for_one {
-                step.tick_next - 1
+                step.tick_next.wrapping_sub(1)
             } else {
                 step.tick_next
             };
@@ -181,18 +180,18 @@ pub fn swap(
             state.tick = tick_math::get_tick_at_sqrt_ratio(state.sqrt_price_x96)?;
         };
 
-        (amount0, amount1) = if zero_for_one == exact_input {
-            (
-                amount_specified - state.amount_specified_remaining,
-                state.amount_calculated,
-            )
-        } else {
-            (
-                state.amount_calculated,
-                amount_specified - state.amount_specified_remaining,
-            )
-        };
     }
+    let (amount0, amount1) = if zero_for_one == exact_input {
+        (
+            amount_specified - state.amount_specified_remaining,
+            state.amount_calculated,
+        )
+    } else {
+        (
+            state.amount_calculated,
+            amount_specified - state.amount_specified_remaining,
+        )
+    };
     return Ok((
         amount0,
         amount1,

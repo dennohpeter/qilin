@@ -1,4 +1,3 @@
-use dotenv::dotenv;
 pub mod abigen;
 pub mod bindings;
 pub mod uni_math;
@@ -9,6 +8,7 @@ use crate::utils::constants::{
     UNISWAP_V3_ROUTER_1, UNISWAP_V3_ROUTER_2, USDC_ADDRESS, USDT_ADDRESS, WETH_ADDRESS,
 };
 use crate::utils::helpers::get_selectors;
+use dotenv::dotenv;
 use ethers::prelude::*;
 use ethers::providers::{Provider, Ws};
 use ethers::signers::{LocalWallet, Signer};
