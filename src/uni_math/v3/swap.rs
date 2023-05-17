@@ -46,10 +46,9 @@ pub fn swap(
     tick_bitmap: &mut HashMap<i16, U256>,
     tick_data: &mut HashMap<i16, TickData>,
 ) -> Result<(I256, I256, U256, u128, i32), Box<dyn Error>> {
-
     if sqrt_price_limit_x96 == U256::zero() {
         if zero_for_one {
-            tick_math::MIN_SQRT_RATIO +1
+            tick_math::MIN_SQRT_RATIO + 1
         } else {
             tick_math::MAX_SQRT_RATIO - 1
         }
@@ -179,7 +178,6 @@ pub fn swap(
         } else if state.sqrt_price_x96 != step.sqrt_price_start_x96 {
             state.tick = tick_math::get_tick_at_sqrt_ratio(state.sqrt_price_x96)?;
         };
-
     }
     let (amount0, amount1) = if zero_for_one == exact_input {
         (

@@ -18,7 +18,7 @@ pub fn get_tokens_out_from_tokens_in(
                 return Err("token0_in is zero").unwrap();
             };
 
-	    let amount_in_with_fee = val * (U256::from(997));
+            let amount_in_with_fee = val * (U256::from(997));
             let result = (token1_reserve * &amount_in_with_fee)
                 / (token0_reserve * U256::from(1000) + &amount_in_with_fee);
             return Ok(result);
@@ -29,8 +29,8 @@ pub fn get_tokens_out_from_tokens_in(
                     return Err("token1_in is zero").unwrap();
                 };
 
-		let amount_in_with_fee = val * (U256::from(997));
-                let result = (token0_reserve *  &amount_in_with_fee)
+                let amount_in_with_fee = val * (U256::from(997));
+                let result = (token0_reserve * &amount_in_with_fee)
                     / (token1_reserve * U256::from(1000) + &amount_in_with_fee);
                 return Ok(result);
             }
@@ -68,8 +68,7 @@ pub fn get_tokens_in_from_tokens_out(
                     return Err("token1_out is zero").unwrap();
                 };
 
-                let result =
-                    (token0_reserve * val) / ((token1_reserve - val) * (U256::from(997)));
+                let result = (token0_reserve * val) / ((token1_reserve - val) * (U256::from(997)));
 
                 return Ok(result);
             }
