@@ -100,6 +100,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //    &action=getstatus
     //    &txhash=0x5d329954fae7d19b2fb9abf0e6862735243b1079c58e0ea307d7e933657ac083
     //    &apikey=YourApiKeyToken
+    //     client.subscribe(["newPendingTransactionsWithBody"]).await
     let mut stream = ws_provider.subscribe_pending_txs().await?;
 
     //let mut stream = ws_provider.pending_bundle(msg).await?;
@@ -200,6 +201,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //println!("z2: {:?}", U256::from_big_endian(&input[132..164]));
     println!("Input: {:?}", hex::encode(&input[4..]));
 
+    
     while let Some(tx_hash) = stream.next().await {
         let msg = ws_provider.get_transaction(tx_hash).await?;
         let data = msg.clone().unwrap_or(Transaction::default());
