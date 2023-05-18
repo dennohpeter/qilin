@@ -31,13 +31,15 @@ pub async fn get_from_txs(
         .map(|tx| (tx, vec![TraceType::StateDiff]))
         .collect();
 
+    // trace_call_many only supported by some clients, such like Erigon
     let block_traces = match client.trace_call_many(req, Some(block_num)).await {
         Ok(x) => x,
-        Err(_) => {
-            // should throw error here but guess None also works :<
+        Err(e) => {
+            println!("Error: {:?}", e);
             return None;
         }
     };
+    println!("block_traces: {:?}", block_traces);
 
     let mut merged_state_diffs = BTreeMap::new();
 

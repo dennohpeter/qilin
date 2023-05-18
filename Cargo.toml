@@ -38,6 +38,7 @@ revm = "3.3.0"
 dashmap = "5.4.0"
 futures = "0.3.28"
 cargo-make = "0.3.54"
+cfmms = "0.6.2"
 
 [dev-dependencies]
 tokio = { version = "1.28.0", features = ["macros", "rt-multi-thread"] }
