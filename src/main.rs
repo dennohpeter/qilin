@@ -44,6 +44,11 @@ use cfmms::{
 		Dex, DexVariant
 	},
 };
+use ethers::types::NameOrAddress;
+use ethers::types::transaction::{
+    eip2930::AccessList,
+    eip2718::TypedTransaction
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -74,6 +79,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let _infura_key = env::var("INFURA_API_KEY").clone().unwrap();
     let _blast_key = env::var("BLAST_API_KEY").clone().unwrap();
     let _etherscan_key = env::var("ETHERSCAN_API_KEY").clone().unwrap();
+    let searcher_wallet = env::var("FLASHBOTS_IDENTIFIER").clone().unwrap().parse::<LocalWallet>();
+    let bundle_signer = env::var("FLASHBOTS_SIGNER").clone().unwrap().parse::<LocalWallet>();
 
     // for WETH address need to check current request and pool via weth9 function
     // from router contract
@@ -81,7 +88,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Provider::try_from(format!("https://sepolia.infura.io/v3/{}", _infura_key))?;
     let http_provider =
         Provider::try_from(format!("https://mainnet.infura.io/v3/{}", _infura_key))?;
-
     // see: https://www.gakonst.com/ethers-rs/providers/ws.html
     // let ws_url_sepolia = format!("wss://sepolia.infura.io/ws/v3/{}", _infura_key);
     let blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
@@ -105,17 +111,59 @@ async fn main() -> Result<(), Box<dyn Error>> {
         SignerMiddleware::new(
             FlashbotsMiddleware::new(
                 http_provider,
-                //Url::parse("https://relay-sepolia.flashbots.net")?,
-                Url::parse("https://relay.flashbots.net")?,
+                Url::parse("https://relay-sepolia.flashbots.net")?,
+                //Url::parse("https://relay.flashbots.net")?,
                 bundle_signer.unwrap(),
             ),
             wallet,
         )
     );
 
+
+
     let block: Arc<Mutex<Option<Block<H256>>>> = Arc::new(Mutex::new(None)); 
     let block_clone = Arc::clone(&block);
+
+    // send bundle via https://relay-sepolia.flashbots.net
+    // swap v2 usdc - eth
+    // to: 0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc
+    // from: 0x9B749e19580934D14d955F993CB159D9747478DA
+    // data: 0xe97ed6120000000000000000000000000000000000000000000000000000000000087e6f
+    // chain_id: 11155111
+    // max_priority_fee_per_gas: Some(U256::from(0))
+    // max_fee_per_gas: Some(next_base_fee)
+    //  gas: Some(U256::from(250000))
+    // nonce: Some(nonce)
+    // access_list: AccessList::default()
     
+
+    let test_from = NameOrAddress::from("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc");
+    let test_to = NameOrAddress::from("0x9B749e19580934D14d955F993CB159D9747478DA");
+    let test_data = Bytes::from(hex::decode("e97ed6120000000000000000000000000000000000000000000000000000000000087e6f")?);
+    let test_nonce = flashbot_client.get_transaction_count(test_from, None).await?;
+    let test_transaction_request = Eip1559TransactionRequest {
+        to: Some(test_to),
+        from: Some("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc".parse::<H160>()?),
+        data: Some(test_data),
+        chain_id: Some(U64::from(115511)),
+        max_priority_fee_per_gas: Some(U256::from(0)),
+        max_fee_per_gas: Some(U256::MAX),
+        gas: Some(U256::from(250000)),
+        nonce: Some(test_nonce),
+        value: None,
+        access_list: AccessList::default()
+    };
+    let frontrun_tx_typed = TypedTransaction::Eip1559(test_transaction_request);
+    let signed_frontrun_tx_sig = searcher_wallet.unwrap().sign_transaction(&frontrun_tx_typed).await;
+    let signed_frontrun_tx = frontrun_tx_typed.rlp_signed(&signed_frontrun_tx_sig.unwrap());
+    let signed_transactions = vec![signed_frontrun_tx];
+    
+
+
+
+
+
+
     tokio::spawn(async move {
         loop{
             let mut block_stream = if let Ok(stream) = block_provider.subscribe_blocks().await{
@@ -132,6 +180,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         }
     });
+
+    
     
 
     let routers = [
@@ -166,10 +216,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 		),
 	];
 
-    pool::sync_pools(
-        dexes.clone(),
-        Arc::clone(&ws_provider),
-    ).await?;
+    // pool::sync_pools(
+    //     dexes.clone(),
+    //     Arc::clone(&ws_provider),
+    // ).await?;
 
     let mut mempool_stream = ws_provider.subscribe_pending_txs().await?;
 
@@ -210,22 +260,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
             continue;
         };
 
-        let state_diffs = if let Some(state_diff) = utils::state_diff::get_from_txs(
-            &Arc::clone(&ws_provider),
-            &vec![data.clone()],
-            if let Some(blk) = (*block).lock().unwrap().as_ref() {
-                BlockNumber::Number(blk.number.unwrap())
-            } else {
-                BlockNumber::Latest
-            },
-        )
-        .await
-        {
-            state_diff
-        } else {
-            format!("{:?}", data.hash);
-            continue;
-        };
+       
+
+        // let state_diffs = if let Some(state_diff) = utils::state_diff::get_from_txs(
+        //     &Arc::clone(&ws_provider),
+        //     &vec![data.clone()],
+        //     if let Some(blk) = (*block).lock().unwrap().as_ref() {
+        //         BlockNumber::Number(blk.number.unwrap())
+        //     } else {
+        //         BlockNumber::Latest
+        //     },
+        // )
+        // .await
+        // {
+        //     state_diff
+        // } else {
+        //     format!("{:?}", data.hash);
+        //     continue;
+        // };
 
         // if tx has statediff on pool addr then record it in `sandwichable_pools`
         // let mev_pools =
@@ -239,7 +291,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //     block_oracle.next_block.number,
     // )));
 
-
+    
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // while let Some(mut victim_tx) = mempool_stream.next().await {
