@@ -73,4 +73,20 @@
     // println!("amountOut: {:?}", _amount_out);
     // println!("to: {:?}", _to);
     // println!("deadline: {:?}", _deadline);
-    // println!("Input: {:?}", hex::encode(&input[4..]));
+    // println!("Input: {:?}", hex::encode(&input[4..]));    
+
+    // let routers = [
+    //     (UNISWAP_V3_ROUTER_1, "Uniswap V3 Router 1"),
+    //     (UNISWAP_V3_ROUTER_2, "Uniswap V3 Router 2"),
+    //     (UNISWAP_V2_ROUTER_1, "Uniswap V2 Router 1"),
+    //     (UNISWAP_V2_ROUTER_2, "Uniswap V2 Router 2"),
+    // ];
+
+    // let mut router_selectors = HashMap::new();
+    // router_selectors.insert(UNISWAP_UNIVERSAL_ROUTER, &SELECTOR_UNI[..]);
+    // router_selectors.insert(UNISWAP_V3_ROUTER_1, &SELECTOR_V3_R1[..]);
+    // router_selectors.insert(UNISWAP_V3_ROUTER_2, &SELECTOR_V3_R2[..]);
+    // router_selectors.insert(UNISWAP_V2_ROUTER_1, &SELECTOR_V2_R1[..]);
+    // router_selectors.insert(UNISWAP_V2_ROUTER_2, &SELECTOR_V2_R2[..]);
+
+
