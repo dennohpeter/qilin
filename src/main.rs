@@ -175,13 +175,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
     let test_from = NameOrAddress::from("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc");
     let test_to = NameOrAddress::from("0x9B749e19580934D14d955F993CB159D9747478DA");
-    let test_data = Bytes::from(hex::decode("e97ed6120000000000000000000000000000000000000000000000000000000000087e6f")?);
+    let test_data = Bytes::from_static(b"0xe97ed6120000000000000000000000000000000000000000000000000000000000087e6f");
     let test_nonce = flashbot_client.get_transaction_count(test_from, None).await?;
     let test_transaction_request = Eip1559TransactionRequest {
         to: Some(test_to),
         from: Some("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc".parse::<H160>()?),
         data: Some(test_data),
-        chain_id: Some(U64::from(115511)),
+        chain_id: Some(U64::from(11155111)),
         max_priority_fee_per_gas: Some(U256::from(0)),
         max_fee_per_gas: Some(U256::MAX),
         gas: Some(U256::from(250000)),
@@ -191,8 +191,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
     let frontrun_tx_typed = TypedTransaction::Eip1559(test_transaction_request);
     let signed_frontrun_tx_sig = searcher_wallet.unwrap().sign_transaction(&frontrun_tx_typed).await;
+    println!("signed_frontrun_tx_sig: {:?}", signed_frontrun_tx_sig);
     let signed_frontrun_tx = frontrun_tx_typed.rlp_signed(&signed_frontrun_tx_sig.unwrap());
     let signed_transactions = vec![signed_frontrun_tx];
+    println!("signed_transactions: {:?}", signed_transactions);
     let bundle = match relayer::construct_bundle(signed_transactions, target) {
         Ok(b) => b,
         Err(e) => { 
@@ -200,6 +202,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
             BundleRequest::new()
          }
     };
+    println!("bundle: {:?}", bundle);
+    // Simulate the flashbots bundle
+    let simulated_bundle = flashbot_client.inner().simulate_bundle(&bundle).await;
+    println!("simulated_bundle: {:?}", simulated_bundle);
+    // goreli cannot decode [tx] text
+    /* This error is likely due to relay-sepolia.flashbots.net being a sucky rpc
+    RelayError(
+        RequestError(
+            reqwest::Error { 
+                kind: Status(500), 
+                url: Url { 
+                    scheme: "https", 
+                    cannot_be_a_base: false, 
+                    username: "", 
+                    password: None, 
+                    host: Some(Domain("relay-sepolia.flashbots.net")), 
+                    port: None, 
+                    path: "/", 
+                    query: None, 
+                    fragment: None } }))
+
+     */
 
 
 
