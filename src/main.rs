@@ -49,6 +49,8 @@ use ethers::types::transaction::{
     eip2930::AccessList,
     eip2718::TypedTransaction
 };
+use crate::utils::relayer;
+use ethers_flashbots::PendingBundle;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -78,6 +80,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // data collection
     let _infura_key = env::var("INFURA_API_KEY").clone().unwrap();
     let _blast_key = env::var("BLAST_API_KEY").clone().unwrap();
+    let _blast_key_sepolia = env::var("BLAST_API_SEPOLIA").clone().unwrap();
     let _etherscan_key = env::var("ETHERSCAN_API_KEY").clone().unwrap();
     let searcher_wallet = env::var("FLASHBOTS_IDENTIFIER").clone().unwrap().parse::<LocalWallet>();
     let bundle_signer = env::var("FLASHBOTS_SIGNER").clone().unwrap().parse::<LocalWallet>();
@@ -90,7 +93,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Provider::try_from(format!("https://mainnet.infura.io/v3/{}", _infura_key))?;
     // see: https://www.gakonst.com/ethers-rs/providers/ws.html
     // let ws_url_sepolia = format!("wss://sepolia.infura.io/ws/v3/{}", _infura_key);
-    let blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
+    //let blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
+    let blast_url = format!("wss://eth-sepolia.blastapi.io/{}", _blast_key_sepolia);
     let llama_url = format!("wss://eth.llamarpc.com");
     // let ws_provider_sepolia = Provider::<Ws>::connect(ws_url_sepolia).await?;
     let ws_provider = Arc::new(Provider::<Ws>::connect(blast_url).await?);
@@ -137,6 +141,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // access_list: AccessList::default()
     
 
+    let current_block = flashbot_client.get_block(BlockId::Number(BlockNumber::Latest)).await;
+    let target = if let Some(b) = current_block.unwrap() {
+        b.number.unwrap() + 1
+    } else {
+        U64::from(0)
+    };
     let test_from = NameOrAddress::from("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc");
     let test_to = NameOrAddress::from("0x9B749e19580934D14d955F993CB159D9747478DA");
     let test_data = Bytes::from(hex::decode("e97ed6120000000000000000000000000000000000000000000000000000000000087e6f")?);
@@ -157,7 +167,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let signed_frontrun_tx_sig = searcher_wallet.unwrap().sign_transaction(&frontrun_tx_typed).await;
     let signed_frontrun_tx = frontrun_tx_typed.rlp_signed(&signed_frontrun_tx_sig.unwrap());
     let signed_transactions = vec![signed_frontrun_tx];
-    
+    let bundle = match relayer::construct_bundle(signed_transactions, target) {
+        Ok(b) => b,
+        Err(e) => { 
+            println!("{:?}", e);
+            BundleRequest::new()
+         }
+    };
+
+
+
+
 
 
 
