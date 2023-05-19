@@ -1,3 +1,4 @@
+use ethers::core::types::H256;
 pub const SELECTOR_UNI: [&str; 3] = [
     "24856bc3", // "execute(bytes,bytes[])"
     "3593564c", // "execute(bytes,bytes[],uint256)"
@@ -77,3 +78,13 @@ pub const UNISWAP_V3_USDT_USDC_LP_0_01: &str = "0x3416cF6C708Da44DB2624D63ea0AAe
 pub const UNISWAP_V3_USDT_USDC_LP_0_05: &str = "0x7858E59e0C01EA06Df3aF3D20aC7B0003275D4Bf";
 pub const UNISWAP_V3_USDT_USDC_LP_0_3: &str = "0xEe4Cf3b78A74aFfa38C6a926282bCd8B5952818d";
 pub const UNISWAP_V3_USDT_USDC_LP_1: &str = "0xbb256c2F1B677e27118b0345FD2b3894D2E6D487";
+
+pub const UNI_V2_POOL_CREATED_EVENT_SIGNATURE: H256 = H256([
+    13, 54, 72, 189, 15, 107, 168, 1, 52, 163, 59, 169, 39, 90, 197, 133, 217, 211, 21, 240, 173,
+    131, 85, 205, 222, 253, 227, 26, 250, 40, 208, 233,
+]);
+
+pub const UNI_V3_POOL_CREATED_EVENT_SIGNATURE: H256 = H256([
+    120, 60, 202, 28, 4, 18, 221, 13, 105, 94, 120, 69, 104, 201, 109, 162, 233, 194, 47, 249, 137,
+    53, 122, 46, 139, 29, 155, 43, 78, 107, 113, 24,
+]);
