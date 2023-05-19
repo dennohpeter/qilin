@@ -1,11 +1,7 @@
+use crate::cfmm::pool::Pool;
+use crate::utils::constants::WETH_ADDRESS;
 use dashmap::DashMap;
-use ethers::types::{H160};
-use crate::utils::constants::{
-    WETH_ADDRESS
-};
-use crate::cfmm::{
-    pool::Pool
-};
+use ethers::types::H160;
 
 use ethers::prelude::*;
 // use futures::stream::FuturesUnordered;
@@ -24,7 +20,7 @@ pub struct TradablePool {
     pub is_weth_input: bool,
 }
 
-impl TradablePool{
+impl TradablePool {
     pub fn new(pool: Pool, is_weth_input: bool) -> Self {
         Self {
             pool,
@@ -32,7 +28,6 @@ impl TradablePool{
         }
     }
 }
-
 
 // Extract state diffs from a given tx
 //
@@ -122,5 +117,3 @@ pub fn extract_pools(
 
     Some(tradable_pools)
 }
-
-

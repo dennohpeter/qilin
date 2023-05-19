@@ -4,23 +4,24 @@ pub mod cfmm;
 pub mod uni_math;
 pub mod utils;
 
-use crate::cfmm::{dex, pool::{
-        PoolVariant, Pool
-    }
+use crate::cfmm::{
+    dex,
+    pool::{Pool, PoolVariant},
 };
-use crate::utils::constants::{
-    DAI_ADDRESS, NULL_ADDRESS, SELECTOR_UNI, SELECTOR_V2_R1, SELECTOR_V2_R2, SELECTOR_V3_R1,
-    SELECTOR_V3_R2, UNISWAP_UNIVERSAL_ROUTER, UNISWAP_V2_ROUTER_1, UNISWAP_V2_ROUTER_2,
-    UNISWAP_V3_ROUTER_1, UNISWAP_V3_ROUTER_2, USDC_ADDRESS, USDT_ADDRESS, WETH_ADDRESS,
-};
+use crate::utils::base_fee_helper;
 use crate::utils::constants::{UNISWAP_V2_FACTORY, UNISWAP_V3_FACTORY};
+use crate::utils::relayer;
 use crate::utils::state_diff;
+use cfmms::dex::{Dex, DexVariant};
 use dashmap::DashMap;
 use dotenv::dotenv;
 use ethers::core::types::{Block, Bytes, U256};
 use ethers::prelude::*;
 use ethers::providers::{Provider, Ws};
 use ethers::signers::{LocalWallet, Signer};
+use ethers::types::transaction::{eip2718::TypedTransaction, eip2930::AccessList};
+use ethers::types::NameOrAddress;
+use ethers_flashbots::PendingBundle;
 use ethers_flashbots::{BundleRequest, FlashbotsMiddleware};
 use eyre::Result;
 use std::collections::HashMap;
@@ -29,21 +30,6 @@ use std::env;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 use url::Url;
-use crate::utils::{
-    base_fee_helper
-};
-use cfmms::{
-	dex::{
-		Dex, DexVariant
-	},
-};
-use ethers::types::NameOrAddress;
-use ethers::types::transaction::{
-    eip2930::AccessList,
-    eip2718::TypedTransaction
-};
-use crate::utils::relayer;
-use ethers_flashbots::PendingBundle;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -75,8 +61,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let _blast_key = env::var("BLAST_API_KEY").clone().unwrap();
     let _blast_key_sepolia = env::var("BLAST_API_SEPOLIA").clone().unwrap();
     let _etherscan_key = env::var("ETHERSCAN_API_KEY").clone().unwrap();
-    let searcher_wallet = env::var("FLASHBOTS_IDENTIFIER").clone().unwrap().parse::<LocalWallet>();
-    let bundle_signer = env::var("FLASHBOTS_SIGNER").clone().unwrap().parse::<LocalWallet>();
+    let searcher_wallet = env::var("FLASHBOTS_IDENTIFIER")
+        .clone()
+        .unwrap()
+        .parse::<LocalWallet>();
+    let bundle_signer = env::var("FLASHBOTS_SIGNER")
+        .clone()
+        .unwrap()
+        .parse::<LocalWallet>();
 
     // for WETH address need to check current request and pool via weth9 function
     // from router contract
@@ -106,17 +98,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Bundle Signer: {}", _bundle_signer);
     println!("Wallet: {}", _wallet);
 
-    let flashbot_client = Arc::new(
-        SignerMiddleware::new(
-            FlashbotsMiddleware::new(
-                http_provider,
-                Url::parse("https://relay-sepolia.flashbots.net")?,
-                //Url::parse("https://relay.flashbots.net")?,
-                bundle_signer.unwrap(),
-            ),
-            wallet,
-        )
-    );
+    let flashbot_client = Arc::new(SignerMiddleware::new(
+        FlashbotsMiddleware::new(
+            http_provider,
+            Url::parse("https://relay-sepolia.flashbots.net")?,
+            //Url::parse("https://relay.flashbots.net")?,
+            bundle_signer.unwrap(),
+        ),
+        wallet,
+    ));
 
     let dexes = vec![
         //UniswapV2
@@ -133,14 +123,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ),
     ];
 
-    
     let current_block = mainnet_ws_provider.get_block_number().await?;
     let synced_pools = dex::sync_dex(
         dexes.clone(),
         &Arc::clone(&mainnet_ws_provider),
         current_block,
         None,
-        2 //throttled for 2 secs
+        2, //throttled for 2 secs
     )
     .await?;
 
@@ -151,7 +140,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let all_pools = Arc::new(all_pools);
 
-    let block: Arc<Mutex<Option<Block<H256>>>> = Arc::new(Mutex::new(None)); 
+    let block: Arc<Mutex<Option<Block<H256>>>> = Arc::new(Mutex::new(None));
     let block_clone = Arc::clone(&block);
 
     // send bundle via https://relay-sepolia.flashbots.net
@@ -165,9 +154,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //  gas: Some(U256::from(250000))
     // nonce: Some(nonce)
     // access_list: AccessList::default()
-    
 
-    let current_block = flashbot_client.get_block(BlockId::Number(BlockNumber::Latest)).await;
+    let current_block = flashbot_client
+        .get_block(BlockId::Number(BlockNumber::Latest))
+        .await;
     let target = if let Some(b) = current_block.unwrap() {
         b.number.unwrap() + 1
     } else {
@@ -175,8 +165,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
     let test_from = NameOrAddress::from("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc");
     let test_to = NameOrAddress::from("0x9B749e19580934D14d955F993CB159D9747478DA");
-    let test_data = Bytes::from(hex::decode("e97ed6120000000000000000000000000000000000000000000000000000000000087e6f")?);
-    let test_nonce = flashbot_client.get_transaction_count(test_from, None).await?;
+    let test_data = Bytes::from(hex::decode(
+        "e97ed6120000000000000000000000000000000000000000000000000000000000087e6f",
+    )?);
+    let test_nonce = flashbot_client
+        .get_transaction_count(test_from, None)
+        .await?;
     let test_transaction_request = Eip1559TransactionRequest {
         to: Some(test_to),
         from: Some("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc".parse::<H160>()?),
@@ -187,23 +181,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
         gas: Some(U256::from(250000)),
         nonce: Some(test_nonce),
         value: None,
-        access_list: AccessList::default()
+        access_list: AccessList::default(),
     };
     let frontrun_tx_typed = TypedTransaction::Eip1559(test_transaction_request);
-    let signed_frontrun_tx_sig = searcher_wallet.unwrap().sign_transaction(&frontrun_tx_typed).await;
+    let signed_frontrun_tx_sig = searcher_wallet
+        .unwrap()
+        .sign_transaction(&frontrun_tx_typed)
+        .await;
     let signed_frontrun_tx = frontrun_tx_typed.rlp_signed(&signed_frontrun_tx_sig.unwrap());
     let signed_transactions = vec![signed_frontrun_tx];
     let bundle = match relayer::construct_bundle(signed_transactions, target) {
         Ok(b) => b,
-        Err(e) => { 
+        Err(e) => {
             println!("{:?}", e);
             BundleRequest::new()
-         }
+        }
     };
-
-
-
-
 
     tokio::spawn(async move {
         loop {
@@ -234,7 +227,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut mempool_stream = mainnet_ws_provider.subscribe_pending_txs().await?;
     while let Some(tx_hash) = mempool_stream.next().await {
-
         let msg = mainnet_ws_provider.get_transaction(tx_hash).await?;
         let mut data = msg.clone().unwrap_or(Transaction::default());
         let mut next_block_base_fee: Option<U256> = None;
@@ -267,8 +259,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             continue;
         };
 
-       
-
         let state_diffs = if let Some(state_diff) = utils::state_diff::get_from_txs(
             &Arc::clone(&mainnet_ws_provider),
             &vec![data.clone()],
@@ -296,11 +286,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // let fork_block = Some(BlockId::Number(BlockNumber::Number(
         //     block_oracle.next_block.number,
         // )));
-    // let fork_block = Some(BlockId::Number(BlockNumber::Number(
-    // )));
+        // let fork_block = Some(BlockId::Number(BlockNumber::Number(
+        // )));
     }
 
     Ok(())
-
-    
 }

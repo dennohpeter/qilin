@@ -1,14 +1,13 @@
 use ethers::prelude::*;
 use ethers::prelude::{AbiError, ContractError};
 use ethers::providers::{Provider, ProviderError, Ws};
-use ethers::types::transaction::request;
+use eyre::Result;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use std::sync::{Arc, Mutex};
 use std::{
     thread::sleep,
     time::{Duration, SystemTime},
 };
-use eyre::Result;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use std::sync::{Arc,Mutex};
 use thiserror::Error;
 use tokio::task::JoinError;
 
@@ -166,8 +165,7 @@ pub async fn sync_dex(
 
     // for each dex supplied, get all pair created events
     for dex in dexes {
-
-	let req_throttle = req_throttle.clone();
+        let req_throttle = req_throttle.clone();
 
         let async_provider = client.clone();
         let progress_bar = multi_progress_bar.add(ProgressBar::new(0));
@@ -179,15 +177,14 @@ pub async fn sync_dex(
                     .progress_chars("##-"),
             );
 
-
             let pools = get_all_pools(
                 dex,
                 async_provider.clone(),
                 BlockNumber::Number(current_block),
                 start_block,
                 progress_bar.clone(),
-		1999,
-		req_throttle.clone(),
+                1999,
+                req_throttle.clone(),
             )
             .await?;
 
@@ -226,7 +223,6 @@ async fn get_all_pools(
     step: usize,
     req_throttle: Arc<Mutex<RequestThrottle>>,
 ) -> Result<Vec<Pool>, PairSyncError> {
-
     // get start block
     let creation_block = if let Some(block) = start_block {
         block.as_number().unwrap().as_u64()
@@ -245,8 +241,10 @@ async fn get_all_pools(
 
     // for each block within the range, get all pairs asynchronously
     for from_block in (creation_block..=current_block).step_by(step) {
-
-	req_throttle.lock().expect("Could noet acquire Mutex").increment_or_sleep(2);
+        req_throttle
+            .lock()
+            .expect("Could noet acquire Mutex")
+            .increment_or_sleep(2);
 
         let provider = provider.clone();
         let progress_bar = progress_bar.clone();
@@ -295,7 +293,6 @@ async fn get_all_pools(
     }
     Ok(aggregated_pairs)
 }
-
 
 #[derive(Error, Debug)]
 pub enum PairSyncError {

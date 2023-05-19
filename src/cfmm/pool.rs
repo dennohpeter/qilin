@@ -1,9 +1,9 @@
+use cfmms::pool;
 use ethers::prelude::*;
 use std::{
     hash::{Hash, Hasher},
     str::FromStr,
 };
-use cfmms::pool;
 
 // pub struct PoolVariant(pool::Pool);
 
