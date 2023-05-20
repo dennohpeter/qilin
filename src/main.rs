@@ -44,6 +44,8 @@ use ethers::types::transaction::{
 };
 use crate::utils::relayer;
 use ethers_flashbots::PendingBundle;
+use std::str::FromStr;
+use ethers::types::{BlockId, U64};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -76,7 +78,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let _blast_key_sepolia = env::var("BLAST_API_SEPOLIA").clone().unwrap();
     let _etherscan_key = env::var("ETHERSCAN_API_KEY").clone().unwrap();
     let searcher_wallet = env::var("FLASHBOTS_IDENTIFIER").clone().unwrap().parse::<LocalWallet>();
-    let bundle_signer = env::var("FLASHBOTS_SIGNER").clone().unwrap().parse::<LocalWallet>();
+    //let bundle_signer = env::var("FLASHBOTS_SIGNER").clone().unwrap().parse::<LocalWallet>();
+    //let bundle_signer = env::var("FLASHBOTS_SIGNER").clone().unwrap();
+    //let private_key_bytes = hex::decode(bundle_signer.trim_start_matches("0x")).expect("Decoding failed");
+    //let wallet = LocalWallet::new(secret_key_from_bytes(private_key_bytes).expect("Invalid private key"));
+    //let signer2 = LocalWallet::from_private_key_str(bundle_signer);
 
     // for WETH address need to check current request and pool via weth9 function
     // from router contract
@@ -106,12 +112,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Bundle Signer: {}", _bundle_signer);
     println!("Wallet: {}", _wallet);
 
+    /*
+    //https://boost-relay-sepolia.flashbots.net/ 
     let flashbot_client = Arc::new(
         SignerMiddleware::new(
             FlashbotsMiddleware::new(
                 http_provider,
-                Url::parse("https://relay-sepolia.flashbots.net")?,
+                Url::parse("https://relay-goerli.flashbots.net")?,
                 //Url::parse("https://relay.flashbots.net")?,
+                LocalWallet::from_bytes(bundle_signer)
+            ),
+            wallet,
+        )
+    );
+     */
+
+    let flashbot_client = Arc::new(
+        SignerMiddleware::new(
+            FlashbotsMiddleware::new(
+                http_provider_sepolia,
+                Url::parse("https://relay-sepolia.flashbots.net")?,
                 bundle_signer.unwrap(),
             ),
             wallet,
@@ -135,21 +155,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     
     let current_block = mainnet_ws_provider.get_block_number().await?;
-    let synced_pools = dex::sync_dex(
-        dexes.clone(),
-        &Arc::clone(&mainnet_ws_provider),
-        current_block,
-        None,
-        2 //throttled for 2 secs
-    )
-    .await?;
+    // let synced_pools = dex::sync_dex(
+    //     dexes.clone(),
+    //     &Arc::clone(&mainnet_ws_provider),
+    //     current_block,
+    //     None,
+    //     2 //throttled for 2 secs
+    // )
+    // .await?;
 
-    let all_pools: DashMap<Address, Pool> = DashMap::new();
-    for pool in synced_pools {
-        all_pools.insert(pool.address, pool);
-    }
+    // let all_pools: DashMap<Address, Pool> = DashMap::new();
+    // for pool in synced_pools {
+    //     all_pools.insert(pool.address, pool);
+    // }
 
-    let all_pools = Arc::new(all_pools);
+    // let all_pools = Arc::new(all_pools);
 
     let block: Arc<Mutex<Option<Block<H256>>>> = Arc::new(Mutex::new(None)); 
     let block_clone = Arc::clone(&block);
@@ -166,6 +186,39 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // nonce: Some(nonce)
     // access_list: AccessList::default()
     
+    // 0x864232e4b50F13f5599c3E0Ff6d21c2F42155a8d
+    // let block_number = flashbot_client.get_block_number().await?;
+    // let block_number = block_number;
+    // println!("Block number: {:?}", block_number);
+    // let tx = {
+    //     let mut inner: TypedTransaction = TransactionRequest::pay(
+    //         "0x864232e4b50F13f5599c3E0Ff6d21c2F42155a8d".parse::<H160>()?, 
+    //         100).into();
+    //     let inner_clone = inner.clone();
+    //     //println!("inner: {:?}", inner_clone);
+    //     flashbot_client.send_transaction(inner, Some(BlockId::from(block_number))).await?;
+    //     inner_clone
+    // };
+    // let tx = {
+    //     let mut inner: TypedTransaction = TransactionRequest::new()
+    //         .from("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc".parse::<H160>()?)
+    //         .to(NameOrAddress::from("0x9B749e19580934D14d955F993CB159D9747478DA"))
+    //         .data(Bytes::from_static(b"0xe97ed6120000000000000000000000000000000000000000000000000000000000087e6f"))
+    //         .chain_id(U64::from(11155111))
+    //         .gas(U256::from(250000)).into();
+    //     flashbot_client.fill_transaction(&mut inner, None).await?;
+    //     inner
+    // };
+    // let signature = flashbot_client.signer().sign_transaction(&tx).await?;
+    // let bundle = BundleRequest::new()
+    //     .push_transaction(tx.rlp_signed(&signature))
+    //     .set_block(block_number + 1)
+    //     .set_simulation_block(block_number)
+    //     .set_simulation_timestamp(0);
+    // println!("bundle: {:?}", bundle);
+    // let simulated_bundle = flashbot_client.inner().simulate_bundle(&bundle).await?;
+    // println!("Simulated bundle: {:?}", simulated_bundle);
+
 
     let current_block = flashbot_client.get_block(BlockId::Number(BlockNumber::Latest)).await;
     let target = if let Some(b) = current_block.unwrap() {
@@ -195,17 +248,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let signed_frontrun_tx = frontrun_tx_typed.rlp_signed(&signed_frontrun_tx_sig.unwrap());
     let signed_transactions = vec![signed_frontrun_tx];
     println!("signed_transactions: {:?}", signed_transactions);
-    let bundle = match relayer::construct_bundle(signed_transactions, target) {
+    let bundle2 = match relayer::construct_bundle(signed_transactions, target) {
         Ok(b) => b,
         Err(e) => { 
-            println!("{:?}", e);
+            println!("Construct Bundle: {:?}", e);
             BundleRequest::new()
          }
     };
-    println!("bundle: {:?}", bundle);
+    println!("bundle: {:?}", bundle2);
     // Simulate the flashbots bundle
-    let simulated_bundle = flashbot_client.inner().simulate_bundle(&bundle).await;
-    println!("simulated_bundle: {:?}", simulated_bundle);
+    let simulated_bundle2 = flashbot_client.inner().send_bundle(&bundle2).await;
+    //println!("simulated_bundle: {:?}", simulated_bundle2.unwrap());
     // goreli cannot decode [tx] text
     /* This error is likely due to relay-sepolia.flashbots.net being a sucky rpc
     RelayError(
