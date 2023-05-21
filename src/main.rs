@@ -257,8 +257,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
     println!("bundle: {:?}", bundle2);
     // Simulate the flashbots bundle
-    let simulated_bundle2 = flashbot_client.inner().send_bundle(&bundle2).await;
-    //println!("simulated_bundle: {:?}", simulated_bundle2.unwrap());
+    let simulated_bundle2 = match flashbot_client.inner().send_bundle(&bundle2).await {
+        Ok(s) => {
+            println!("Simulated Bundle Success");
+            s
+        },
+        Err(e) => {
+            println!("Simulated Bundle Error: {:?}", e);
+            return Err(Box::new(e) as Box<dyn std::error::Error>);
+        }
+    };
     // goreli cannot decode [tx] text
     /* This error is likely due to relay-sepolia.flashbots.net being a sucky rpc
     RelayError(
