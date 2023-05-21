@@ -17,7 +17,7 @@ use dashmap::DashMap;
 use dotenv::dotenv;
 use ethers::core::types::{Block, Bytes, U256};
 use ethers::prelude::*;
-use ethers::providers::{Provider, Ws};
+use ethers::providers::{Provider, Ws, Middleware};
 use ethers::signers::{LocalWallet, Signer};
 use ethers::types::transaction::{eip2718::TypedTransaction, eip2930::AccessList};
 use ethers::types::NameOrAddress;
@@ -30,6 +30,7 @@ use std::env;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 use url::Url;
+
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -61,14 +62,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let _blast_key = env::var("BLAST_API_KEY").clone().unwrap();
     let _blast_key_sepolia = env::var("BLAST_API_SEPOLIA").clone().unwrap();
     let _etherscan_key = env::var("ETHERSCAN_API_KEY").clone().unwrap();
-    let searcher_wallet = env::var("FLASHBOTS_IDENTIFIER")
-        .clone()
-        .unwrap()
-        .parse::<LocalWallet>();
-    let bundle_signer = env::var("FLASHBOTS_SIGNER")
-        .clone()
-        .unwrap()
-        .parse::<LocalWallet>();
 
     // for WETH address need to check current request and pool via weth9 function
     // from router contract
@@ -88,9 +81,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let block_provider = Provider::<Ws>::connect(llama_url).await?;
 
     // bundle signing
-    let _bundle_signer = env::var("FLASHBOTS_IDENTIFIER").clone().unwrap();
-    let bundle_signer = _bundle_signer.parse::<LocalWallet>();
-    //let addr = _bundle_signer.address();
+    let _bundle_signer = env::var("FLASHBOTS_IDENTIFIER")?;
+    let bundle_signer = _bundle_signer.parse::<LocalWallet>()?;
 
     let _wallet = env::var("FLASHBOTS_SIGNER").clone().unwrap();
     let wallet = _wallet.parse::<LocalWallet>().unwrap();
@@ -98,15 +90,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Bundle Signer: {}", _bundle_signer);
     println!("Wallet: {}", _wallet);
 
+    let mut flashbot_middleware = FlashbotsMiddleware::new(
+        http_provider_sepolia,
+        Url::parse("https://relay-sepolia.flashbots.net")?,
+        //Url::parse("https://relay.flashbots.net")?,
+        bundle_signer.clone(),
+    );
+
+    flashbot_middleware.set_simulation_relay(
+        Url::parse("https://relay-sepolia.flashbots.net")?,
+        bundle_signer.clone(),
+    );
+
     let flashbot_client = Arc::new(SignerMiddleware::new(
-        FlashbotsMiddleware::new(
-            http_provider,
-            Url::parse("https://relay-sepolia.flashbots.net")?,
-            //Url::parse("https://relay.flashbots.net")?,
-            bundle_signer.unwrap(),
-        ),
-        wallet,
+        flashbot_middleware,
+        wallet.clone(),
     ));
+
 
     let dexes = vec![
         //UniswapV2
@@ -124,21 +124,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     ];
 
     let current_block = mainnet_ws_provider.get_block_number().await?;
-    let synced_pools = dex::sync_dex(
-        dexes.clone(),
-        &Arc::clone(&mainnet_ws_provider),
-        current_block,
-        None,
-        2, //throttled for 2 secs
-    )
-    .await?;
+    // let synced_pools = dex::sync_dex(
+    //     dexes.clone(),
+    //     &Arc::clone(&mainnet_ws_provider),
+    //     current_block,
+    //     None,
+    //     2, //throttled for 2 secs
+    // )
+    // .await?;
 
-    let all_pools: DashMap<Address, Pool> = DashMap::new();
-    for pool in synced_pools {
-        all_pools.insert(pool.address, pool);
-    }
+    // let all_pools: DashMap<Address, Pool> = DashMap::new();
+    // for pool in synced_pools {
+    //     all_pools.insert(pool.address, pool);
+    // }
 
-    let all_pools = Arc::new(all_pools);
+    // let all_pools = Arc::new(all_pools);
 
     let block: Arc<Mutex<Option<Block<H256>>>> = Arc::new(Mutex::new(None));
     let block_clone = Arc::clone(&block);
@@ -163,19 +163,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     } else {
         U64::from(0)
     };
-    let test_from = NameOrAddress::from("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc");
+
+    let wallet_address = wallet.address();
     let test_to = NameOrAddress::from("0x9B749e19580934D14d955F993CB159D9747478DA");
-    let test_data = Bytes::from(hex::decode(
-        "e97ed6120000000000000000000000000000000000000000000000000000000000087e6f",
-    )?);
-    let test_nonce = flashbot_client
-        .get_transaction_count(test_from, None)
-        .await?;
+    let test_data = Bytes::from_static(b"0xe97ed6120000000000000000000000000000000000000000000000000000000000087e6f");
+    let test_nonce = flashbot_client.get_transaction_count(wallet_address.clone(), None).await?;
+    println!("Nonce: {}", test_nonce);
     let test_transaction_request = Eip1559TransactionRequest {
         to: Some(test_to),
-        from: Some("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc".parse::<H160>()?),
+        from: Some(wallet_address),
         data: Some(test_data),
-        chain_id: Some(U64::from(115511)),
+        chain_id: Some(U64::from(11155111)),
         max_priority_fee_per_gas: Some(U256::from(0)),
         max_fee_per_gas: Some(U256::MAX),
         gas: Some(U256::from(250000)),
@@ -183,20 +181,48 @@ async fn main() -> Result<(), Box<dyn Error>> {
         value: None,
         access_list: AccessList::default(),
     };
+
     let frontrun_tx_typed = TypedTransaction::Eip1559(test_transaction_request);
-    let signed_frontrun_tx_sig = searcher_wallet
-        .unwrap()
-        .sign_transaction(&frontrun_tx_typed)
-        .await;
-    let signed_frontrun_tx = frontrun_tx_typed.rlp_signed(&signed_frontrun_tx_sig.unwrap());
-    let signed_transactions = vec![signed_frontrun_tx];
-    let bundle = match relayer::construct_bundle(signed_transactions, target) {
-        Ok(b) => b,
-        Err(e) => {
-            println!("{:?}", e);
-            BundleRequest::new()
-        }
+    
+    let tx = {
+        let mut inner: TypedTransaction = frontrun_tx_typed;
+        flashbot_client.fill_transaction(&mut inner, None).await?;
+        inner
     };
+    println!("Tx: {:?}", tx);
+
+    let signature = flashbot_client.signer().sign_transaction(&tx).await?;
+    let signed_frontrun_tx = tx.rlp_signed(&signature);
+    let signed_transactions = vec![signed_frontrun_tx];
+    println!("signed_transactions: {:?}", signed_transactions);
+
+    let bundle = relayer::construct_bundle(signed_transactions, target).map_err(|e| {
+        println!("Bundle Construction Error{:?}", e);
+        e
+    })?;
+
+    // Simulate the flashbots bundle
+    let simulated_bundle = flashbot_client.inner().simulate_bundle(&bundle).await;
+    println!("simulated_bundle: {:?}", simulated_bundle);
+
+
+    /* This error is likely due to relay-sepolia.flashbots.net being a sucky rpc
+    RelayError(
+        RequestError(
+            reqwest::Error { 
+                kind: Status(500), 
+                url: Url { 
+                    scheme: "https", 
+                    cannot_be_a_base: false, 
+                    username: "", 
+                    password: None, 
+                    host: Some(Domain("relay-sepolia.flashbots.net")), 
+                    port: None, 
+                    path: "/", 
+                    query: None, 
+                    fragment: None } }))
+
+     */
 
     tokio::spawn(async move {
         loop {
