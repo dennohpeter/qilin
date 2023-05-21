@@ -91,14 +91,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Wallet: {}", _wallet);
 
     let mut flashbot_middleware = FlashbotsMiddleware::new(
-        http_provider_sepolia,
-        Url::parse("https://relay-sepolia.flashbots.net")?,
-        //Url::parse("https://relay.flashbots.net")?,
+        mainnet_ws_provider.clone(),
+        // http_provider_sepolia,
+        // Url::parse("https://relay-sepolia.flashbots.net")?,
+        Url::parse("https://relay.flashbots.net")?,
         bundle_signer.clone(),
     );
 
     flashbot_middleware.set_simulation_relay(
-        Url::parse("https://relay-sepolia.flashbots.net")?,
+        // Url::parse("https://relay-sepolia.flashbots.net")?,
+        Url::parse("https://relay.flashbots.net")?,
         bundle_signer.clone(),
     );
 
@@ -155,14 +157,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // nonce: Some(nonce)
     // access_list: AccessList::default()
 
-    let current_block = flashbot_client
-        .get_block(BlockId::Number(BlockNumber::Latest))
-        .await;
-    let target = if let Some(b) = current_block.unwrap() {
-        b.number.unwrap() + 1
-    } else {
-        U64::from(0)
-    };
+    // let current_block = flashbot_client
+    //     .get_block(BlockId::Number(BlockNumber::Latest))
+    //     .await;
+    // let target = if let Some(b) = current_block.unwrap() {
+    //     b.number.unwrap()// + 1
+    // } else {
+    //     U64::from(0)
+    // };
+    let target = current_block;
 
     let wallet_address = wallet.address();
     let test_to = NameOrAddress::from("0x9B749e19580934D14d955F993CB159D9747478DA");
@@ -173,7 +176,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         to: Some(test_to),
         from: Some(wallet_address),
         data: Some(test_data),
-        chain_id: Some(U64::from(11155111)),
+        chain_id: Some(U64::from(1)),
         max_priority_fee_per_gas: Some(U256::from(0)),
         max_fee_per_gas: Some(U256::MAX),
         gas: Some(U256::from(250000)),
@@ -205,25 +208,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let simulated_bundle = flashbot_client.inner().simulate_bundle(&bundle).await;
     println!("simulated_bundle: {:?}", simulated_bundle);
 
-
-    /* This error is likely due to relay-sepolia.flashbots.net being a sucky rpc
-    RelayError(
-        RequestError(
-            reqwest::Error { 
-                kind: Status(500), 
-                url: Url { 
-                    scheme: "https", 
-                    cannot_be_a_base: false, 
-                    username: "", 
-                    password: None, 
-                    host: Some(Domain("relay-sepolia.flashbots.net")), 
-                    port: None, 
-                    path: "/", 
-                    query: None, 
-                    fragment: None } }))
-
-     */
-
     tokio::spawn(async move {
         loop {
             let mut block_stream = if let Ok(stream) = block_provider.subscribe_blocks().await {
@@ -252,7 +236,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let mut mempool_stream = mainnet_ws_provider.subscribe_pending_txs().await?;
+    println!("Subscribed to pending txs");
+
     while let Some(tx_hash) = mempool_stream.next().await {
+
+        println!("New TxHash: {:?}", tx_hash);
         let msg = mainnet_ws_provider.get_transaction(tx_hash).await?;
         let mut data = msg.clone().unwrap_or(Transaction::default());
         let mut next_block_base_fee: Option<U256> = None;
