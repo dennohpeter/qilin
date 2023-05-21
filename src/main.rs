@@ -154,10 +154,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     ];
 
     
-    let current_block = mainnet_ws_provider.get_block_number().await?;
+    //let current_block = mainnet_ws_provider.get_block_number().await?;
+    let current_block = sepolia_ws_provider.get_block_number().await?;
     // let synced_pools = dex::sync_dex(
     //     dexes.clone(),
     //     &Arc::clone(&mainnet_ws_provider),
+    //     //&Arc::clone(&sepolia_ws_provider),
     //     current_block,
     //     None,
     //     2 //throttled for 2 secs
@@ -317,10 +319,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    let mut mempool_stream = mainnet_ws_provider.subscribe_pending_txs().await?;
+    //let mut mempool_stream = mainnet_ws_provider.subscribe_pending_txs().await?;
+    let mut mempool_stream = sepolia_ws_provider.subscribe_pending_txs().await?;
     while let Some(tx_hash) = mempool_stream.next().await {
 
-        let msg = mainnet_ws_provider.get_transaction(tx_hash).await?;
+        //let msg = mainnet_ws_provider.get_transaction(tx_hash).await?;
+        let msg = sepolia_ws_provider.get_transaction(tx_hash).await?;
         let mut data = msg.clone().unwrap_or(Transaction::default());
         let mut next_block_base_fee: Option<U256> = None;
 
@@ -355,7 +359,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
        
 
         let state_diffs = if let Some(state_diff) = utils::state_diff::get_from_txs(
-            &Arc::clone(&mainnet_ws_provider),
+            //&Arc::clone(&mainnet_ws_provider),
+            &Arc::clone(&sepolia_ws_provider),
             &vec![data.clone()],
             if let Some(blk) = (*block).lock().unwrap().as_ref() {
                 BlockNumber::Number(blk.number.unwrap())
