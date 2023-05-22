@@ -12,3 +12,6 @@
 
 - `cargo make abigen`
   * need to specify the contract to be generated in src/abigen.rs
+
+4. by default bot runs on Mainnet. To run on Goerli, 
+- `cargo run goerli`
