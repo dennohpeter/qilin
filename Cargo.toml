@@ -9,6 +9,7 @@ edition = "2021"
 dotenv = "0.15.0"
 # ethers-flashbots = "0.13.0"
 ethers-flashbots = { git = "https://github.com/da-bao-jian/ethers-flashbots", branch = "master"}
+rusty-sando = { git = "https://github.com/da-bao-jian/rusty-sando", branch="master"}
 tokio = { version = "1.28.0", features = ["macros", "rt-multi-thread"] }
 eyre = "0.6.8"
 

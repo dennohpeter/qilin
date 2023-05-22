@@ -277,17 +277,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
         };
 
         // if tx has statediff on pool addr then record it in `mev_pools`
-        // let mev_pools =
-        // if let Some(mevP) = utils::state_diff::extract_pools(&state_diffs, &all_pools) {
-        //     mevP
-        // } else {
-        //     continue;
-        // };
-        // let fork_block = Some(BlockId::Number(BlockNumber::Number(
-        //     block_oracle.next_block.number,
-        // )));
-        // let fork_block = Some(BlockId::Number(BlockNumber::Number(
-        // )));
+        let mev_pools =
+        if let Some(mevP) = utils::state_diff::extract_pools(&state_diffs, &all_pools) {
+            mevP
+        } else {
+            continue;
+        };
+        let fork_block = Some(BlockId::Number(BlockNumber::Number(
+            ws_provider.get_block_number().await? + 1
+        )));
+        let temp_provider = Arc::clone(&ws_provider);
+        let initial_db = utils::state_diff::to_cache_db(
+            &state_diffs,
+            fork_block,
+            &temp_provider,
+        );
     }
 
     Ok(())

@@ -4,11 +4,11 @@ use dashmap::DashMap;
 use ethers::types::H160;
 
 use ethers::prelude::*;
-// use futures::stream::FuturesUnordered;
-// use revm::{
-//     db::{CacheDB, EmptyDB},
-//     primitives::{AccountInfo, Bytecode},
-// };
+use futures::stream::FuturesUnordered;
+use revm::{
+    db::{CacheDB, EmptyDB},
+    primitives::{AccountInfo, Bytecode},
+};
 use std::{
     collections::{btree_map::Entry, BTreeMap},
     sync::Arc,
@@ -116,4 +116,75 @@ pub fn extract_pools(
     }
 
     Some(tradable_pools)
+}
+
+//  Turn state_diffs into a new cache_db
+//
+// Arguments:
+// * `state`: Statediffs used as values for creation of cache_db
+// * `block_num`: Block number to get state from
+// * `provider`: Websocket provider used to make rpc calls
+//
+// Returns:
+// Ok(CacheDB<EmptyDB>): cacheDB created from statediffs, if no errors
+// Err(ProviderError): If encountered error during rpc calls
+pub async fn to_cache_db(
+    state: &BTreeMap<Address, AccountDiff>,
+    block_num: Option<BlockId>,
+    provider: &Arc<Provider<Ws>>,
+) -> Result<CacheDB<EmptyDB>, ProviderError> {
+    let mut cache_db = CacheDB::new(EmptyDB::default());
+
+    let mut futures = FuturesUnordered::new();
+
+    for (address, acc_diff) in state.iter() {
+        let nonce_provider = provider.clone();
+        let balance_provider = provider.clone();
+        let code_provider = provider.clone();
+
+        let addy = *address;
+
+        let future = async move {
+            let nonce = nonce_provider
+                .get_transaction_count(addy, block_num)
+                .await?;
+
+            let balance = balance_provider.get_balance(addy, block_num).await?;
+
+            let code = code_provider.get_code(addy, block_num).await?;
+
+            Ok::<(AccountDiff, Address, U256, U256, Bytes), ProviderError>((
+                acc_diff.clone(),
+                *address,
+                nonce,
+                balance,
+                code,
+            ))
+        };
+
+        futures.push(future);
+    }
+
+    while let Some(result) = futures.next().await {
+        let (acc_diff, address, nonce, balance, code) = result?;
+        let info = AccountInfo::new(balance.into(), nonce.as_u64(), Bytecode::new_raw(code.0));
+        cache_db.insert_account_info(address.0.into(), info);
+
+        acc_diff.storage.iter().for_each(|(slot, storage_diff)| {
+            let slot_value: U256 = match storage_diff.to_owned() {
+                Diff::Changed(v) => v.from.0.into(),
+                Diff::Died(v) => v.0.into(),
+                _ => {
+                    // for cases Born and Same no need to touch
+                    return;
+                }
+            };
+            let slot: U256 = slot.0.into();
+            cache_db
+                .insert_account_storage(address.0.into(), slot.into(), slot_value.into())
+                .unwrap();
+        });
+    }
+
+    Ok(cache_db)
 }
