@@ -58,9 +58,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .arg(arg!([NETWORK_NAME]).required(false))
         .get_matches();
 
-    let mut ws_provider: Option<Arc<Provider<Ws>>> = None;
-    let mut middleware_url: Option<Url> = None;
-    let mut chain_id: Option<i32> = None;
+    let mut _ws_provider: Option<Arc<Provider<Ws>>> = None;
+    let mut _middleware_url: Option<Url> = None;
+    let mut _chain_id: Option<i32> = None;
 
     match matches.get_one::<String>("NETWORK_NAME") {
         Some(network) if network == "mainnet" => {
@@ -76,9 +76,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             match result {
                 Ok((ws, mw, ci)) => {
-                    ws_provider = Some(ws);
-                    middleware_url = Some(mw);
-                    chain_id = Some(ci);
+                    _ws_provider = Some(ws);
+                    _middleware_url = Some(mw);
+                    _chain_id = Some(ci);
                 }
                 Err(e) => {
                     println!("Error: {}", e);
@@ -98,9 +98,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             match result {
                 Ok((ws, mw, ci)) => {
-                    ws_provider = Some(ws);
-                    middleware_url = Some(mw);
-                    chain_id = Some(ci);
+                    _ws_provider = Some(ws);
+                    _middleware_url = Some(mw);
+                    _chain_id = Some(ci);
                 }
                 Err(e) => {
                     println!("Error: {}", e);
@@ -123,9 +123,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             match result {
                 Ok((ws, mw, ci)) => {
-                    ws_provider = Some(ws);
-                    middleware_url = Some(mw);
-                    chain_id = Some(ci);
+                    _ws_provider = Some(ws);
+                    _middleware_url = Some(mw);
+                    _chain_id = Some(ci);
                 }
                 Err(e) => {
                     println!("Error: {}", e);
@@ -134,71 +134,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    let ws_provider = _ws_provider.unwrap();
+    let middleware_url = _middleware_url.unwrap();
+    let chain_id = _chain_id.unwrap();
 
     let mut flashbot_middleware = FlashbotsMiddleware::new(
-        ws_provider.clone().unwrap(),
-        middleware_url.clone().unwrap(),
+        ws_provider.clone(),
+        middleware_url.clone(),
         bundle_signer.clone(),
     );
 
     flashbot_middleware.set_simulation_relay(
-        middleware_url.unwrap().clone(),
+        middleware_url.clone(),
         bundle_signer.clone(),
     );
 
     let flashbot_client = Arc::new(SignerMiddleware::new(flashbot_middleware, wallet.clone()));
 
-    let dexes = vec![
-        //UniswapV2
-        dex::Dex::new(
-            UNISWAP_V2_FACTORY.parse::<H160>()?,
-            PoolVariant::UniswapV2,
-            10000835,
-        ),
-        //Add UniswapV3
-        dex::Dex::new(
-            UNISWAP_V3_FACTORY.parse::<H160>()?,
-            PoolVariant::UniswapV3,
-            12369621,
-        ),
-    ];
-
-    // let synced_pools = dex::sync_dex(
-    //     dexes.clone(),
-    //     &Arc::clone(&mainnet_ws_provider),
-    //     //&Arc::clone(&goerli_ws_provider),
-    //     current_block,
-    //     None,
-    //     2, //throttled for 2 secs
-    // )
-    // .await?;
-
-    // let all_pools: DashMap<Address, Pool> = DashMap::new();
-    // for pool in synced_pools {
-    //     all_pools.insert(pool.address, pool);
-    // }
-
-    // let all_pools = Arc::new(all_pools);
+   
 
     let block: Arc<Mutex<Option<Block<H256>>>> = Arc::new(Mutex::new(None));
     let block_clone = Arc::clone(&block);
 
-
-    let _to = NameOrAddress::from("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc");
-    let _data = Bytes::from_static(
-        b"0xe97ed6120000000000000000000000000000000000000000000000000000000000087e6f",
-    );
-
-    let bundle_payload = relayer::simulate_bundle(
-        _to,
-        _data,
-        &flashbot_client.clone(),
-        &ws_provider.clone().unwrap(),
-        &wallet.clone(),
-        &chain_id.unwrap(),
-    )
-    .await?;
-    println!("simulated_bundle: {:?}", bundle_payload);
 
     tokio::spawn(async move {
         loop {
@@ -227,14 +184,50 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    let ws_provider_for_stream = ws_provider.take().unwrap();
+    let dexes = vec![
+        //UniswapV2
+        dex::Dex::new(
+            UNISWAP_V2_FACTORY.parse::<H160>()?,
+            PoolVariant::UniswapV2,
+            17310000,
+        ),
+        //Add UniswapV3
+        dex::Dex::new(
+            UNISWAP_V3_FACTORY.parse::<H160>()?,
+            PoolVariant::UniswapV3,
+            17310000,
+        ),
+    ];
 
-    let mut mempool_stream = ws_provider_for_stream.subscribe_pending_txs().await?;
+    let current_block = ws_provider
+        .as_ref()
+        .get_block_number()
+        .await?;
+
+
+    println!("Current Block: {:?}", current_block);
+    let synced_pools = dex::sync_dex(
+        dexes.clone(),
+        &Arc::clone(&ws_provider),
+        current_block,
+        None,
+        2, //throttled for 2 secs
+    )
+    .await?;
+
+    let all_pools: DashMap<Address, Pool> = DashMap::new();
+    for pool in synced_pools {
+        all_pools.insert(pool.address, pool);
+    }
+
+    let all_pools = Arc::new(all_pools);
+
+    let mut mempool_stream = ws_provider.subscribe_pending_txs().await?;
     println!("Subscribed to pending txs");
 
     while let Some(tx_hash) = mempool_stream.next().await {
-        println!("New TxHash: {:?}", tx_hash);
-        let msg = ws_provider_for_stream.get_transaction(tx_hash).await?;
+        let msg = ws_provider.get_transaction(tx_hash).await?;
+
         let mut data = msg.clone().unwrap_or(Transaction::default());
         let mut next_block_base_fee: Option<U256> = None;
 
@@ -267,7 +260,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         };
 
         let state_diffs = if let Some(state_diff) = utils::state_diff::get_from_txs(
-            &Arc::clone(&ws_provider_for_stream),
+            &Arc::clone(&ws_provider),
             &vec![data.clone()],
             if let Some(blk) = (*block).lock().unwrap().as_ref() {
                 BlockNumber::Number(blk.number.unwrap())

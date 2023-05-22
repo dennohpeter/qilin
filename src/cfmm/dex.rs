@@ -188,6 +188,8 @@ pub async fn sync_dex(
             )
             .await?;
 
+            println!("Pulled {} Pairs", pools.len());
+
             progress_bar.reset();
             progress_bar.set_style(
                 ProgressStyle::with_template("{msg} {bar:40.green/grey} {pos:>7}/{len:7} Pairs")

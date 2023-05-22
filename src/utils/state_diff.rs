@@ -53,7 +53,7 @@ pub async fn get_from_txs(
     let block_traces = match client.trace_call_many(req, Some(block_num)).await {
         Ok(x) => x,
         Err(e) => {
-            println!("Error: {:?}", e);
+            println!("Block Trace Error: {:?}", e);
             return None;
         }
     };
