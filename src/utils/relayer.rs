@@ -16,7 +16,8 @@ pub async fn simulate_bundle(
         SignerMiddleware<FlashbotsMiddleware<Arc<Provider<Ws>>, LocalWallet>, LocalWallet>,
     >,
     ws_provider: &Provider<Ws>,
-    wallet: LocalWallet,
+    wallet: &LocalWallet,
+    chain_id: &i32
 ) -> Result<SimulatedBundle, Box<dyn Error>> {
     let current_block = ws_provider.get_block_number().await?;
 
@@ -30,8 +31,7 @@ pub async fn simulate_bundle(
         to: Some(_to),
         from: Some(wallet_address),
         data: Some(_data),
-        chain_id: Some(U64::from(5)),
-        // chain_id: Some(U64::from(1)),
+        chain_id: Some(U64::from(*chain_id)),
         max_priority_fee_per_gas: Some(U256::from(0)),
         max_fee_per_gas: Some(U256::MAX),
         gas: Some(U256::from(550000)),
