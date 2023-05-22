@@ -4,32 +4,32 @@ pub mod cfmm;
 pub mod uni_math;
 pub mod utils;
 
+use crate::cfmm::{
+    dex,
+    pool::{Pool, PoolVariant},
+};
 use crate::utils::constants::{UNISWAP_V2_FACTORY, UNISWAP_V3_FACTORY};
 use crate::utils::{
-    relayer,
-    state_diff,
     base_fee_helper,
     helpers::{connect_to_network, generate_abigen},
+    relayer, state_diff,
 };
+use cfmms::dex::{Dex, DexVariant};
+use clap::{arg, Command};
 use dashmap::DashMap;
 use dotenv::dotenv;
 use ethers::core::types::{Block, Bytes, U256};
 use ethers::prelude::*;
 use ethers::providers::{Middleware, Provider, Ws};
-use ethers::signers::{LocalWallet};
+use ethers::signers::LocalWallet;
 use ethers::types::NameOrAddress;
-use ethers_flashbots::{FlashbotsMiddleware};
+use ethers_flashbots::FlashbotsMiddleware;
 use eyre::Result;
+use rusty::prelude::fork_factory::ForkFactory;
 use std::env;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 use url::Url;
-use cfmms::dex::{Dex, DexVariant};
-use crate::cfmm::{
-    dex,
-    pool::{Pool, PoolVariant},
-};
-use clap::{Command,arg};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // data collection
     let _etherscan_key = env::var("ETHERSCAN_API_KEY").unwrap();
-    
+
     let llama_url = format!("wss://eth.llamarpc.com");
 
     let block_provider = Provider::<Ws>::connect(llama_url).await?;
@@ -50,7 +50,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let _wallet = env::var("FLASHBOTS_SIGNER").clone().unwrap();
     let wallet = _wallet.parse::<LocalWallet>().unwrap();
-
 
     let matches = Command::new("Qi(氣) Bot")
         .version("1.0")
@@ -68,11 +67,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let _blast_key = env::var("BLAST_API_KEY").unwrap();
             let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
 
-            let result: Result<_, Box<dyn Error>> = connect_to_network(
-                &mainnet_blast_url,
-                "https://relay.flashbots.net",
-                1,
-            ).await;
+            let result: Result<_, Box<dyn Error>> =
+                connect_to_network(&mainnet_blast_url, "https://relay.flashbots.net", 1).await;
 
             match result {
                 Ok((ws, mw, ci)) => {
@@ -90,11 +86,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let _blast_key_goerli = env::var("BLAST_API_GOERLI").unwrap();
             let goerli_blast_url = format!("wss://eth-goerli.blastapi.io/{}", _blast_key_goerli);
 
-            let result: Result<_, Box<dyn Error>> = connect_to_network(
-                &goerli_blast_url,
-                "https://relay-goerli.flashbots.net",
-                5,
-            ).await;
+            let result: Result<_, Box<dyn Error>> =
+                connect_to_network(&goerli_blast_url, "https://relay-goerli.flashbots.net", 5)
+                    .await;
 
             match result {
                 Ok((ws, mw, ci)) => {
@@ -115,11 +109,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let _blast_key = env::var("BLAST_API_KEY").unwrap();
             let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
 
-            let result: Result<_, Box<dyn Error>> = connect_to_network(
-                &mainnet_blast_url,
-                "https://relay.flashbots.net",
-                1,
-            ).await;
+            let result: Result<_, Box<dyn Error>> =
+                connect_to_network(&mainnet_blast_url, "https://relay.flashbots.net", 1).await;
 
             match result {
                 Ok((ws, mw, ci)) => {
@@ -144,18 +135,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         bundle_signer.clone(),
     );
 
-    flashbot_middleware.set_simulation_relay(
-        middleware_url.clone(),
-        bundle_signer.clone(),
-    );
+    flashbot_middleware.set_simulation_relay(middleware_url.clone(), bundle_signer.clone());
 
     let flashbot_client = Arc::new(SignerMiddleware::new(flashbot_middleware, wallet.clone()));
 
-   
-
     let block: Arc<Mutex<Option<Block<H256>>>> = Arc::new(Mutex::new(None));
     let block_clone = Arc::clone(&block);
-
 
     tokio::spawn(async move {
         loop {
@@ -199,11 +184,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ),
     ];
 
-    let current_block = ws_provider
-        .as_ref()
-        .get_block_number()
-        .await?;
-
+    let current_block = ws_provider.as_ref().get_block_number().await?;
 
     println!("Current Block: {:?}", current_block);
     let synced_pools = dex::sync_dex(
@@ -278,20 +259,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         // if tx has statediff on pool addr then record it in `mev_pools`
         let mev_pools =
-        if let Some(mevP) = utils::state_diff::extract_pools(&state_diffs, &all_pools) {
-            mevP
-        } else {
-            continue;
-        };
+            if let Some(mevP) = utils::state_diff::extract_pools(&state_diffs, &all_pools) {
+                mevP
+            } else {
+                continue;
+            };
         let fork_block = Some(BlockId::Number(BlockNumber::Number(
-            ws_provider.get_block_number().await? + 1
+            ws_provider.get_block_number().await? + 1,
         )));
         let temp_provider = Arc::clone(&ws_provider);
-        let initial_db = utils::state_diff::to_cache_db(
-            &state_diffs,
-            fork_block,
-            &temp_provider,
-        );
+        let initial_db = utils::state_diff::to_cache_db(&state_diffs, fork_block, &temp_provider)
+            .await
+            .unwrap();
+        let fork_factory =
+            ForkFactory::new_sandbox_factory(temp_provider.clone(), initial_db, fork_block);
     }
 
     Ok(())

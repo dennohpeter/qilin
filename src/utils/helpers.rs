@@ -1,9 +1,9 @@
+use crate::abigen;
 use ethers::core::types::Bytes;
+use ethers::providers::{Middleware, Provider, Ws};
 use std::error::Error;
 use std::sync::Arc;
 use url::Url;
-use ethers::providers::{Middleware, Provider, Ws};
-use crate::abigen;
 
 pub fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())
@@ -23,13 +23,17 @@ pub fn hex_to_bytes(hex: &str) -> Result<Bytes, ()> {
     Ok(Bytes::from(bytes))
 }
 
-pub async fn connect_to_network(ws_url: &str, mw_url: &str, chain_id: i32) -> Result<(Arc<Provider<Ws>>, Url, i32), Box<dyn Error>> {
+pub async fn connect_to_network(
+    ws_url: &str,
+    mw_url: &str,
+    chain_id: i32,
+) -> Result<(Arc<Provider<Ws>>, Url, i32), Box<dyn Error>> {
     let ws_provider = Arc::new(Provider::<Ws>::connect(ws_url).await?);
     let middleware_url = Url::parse(mw_url)?;
     Ok((ws_provider, middleware_url, chain_id))
 }
 
-pub async fn generate_abigen(arg: Vec<String>) -> Result<(), Box<dyn Error>>{
+pub async fn generate_abigen(arg: Vec<String>) -> Result<(), Box<dyn Error>> {
     let first_arg = if arg.len() > 1 {
         arg[1].clone()
     } else {

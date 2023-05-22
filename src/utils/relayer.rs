@@ -17,7 +17,7 @@ pub async fn simulate_bundle(
     >,
     ws_provider: &Provider<Ws>,
     wallet: &LocalWallet,
-    chain_id: &i32
+    chain_id: &i32,
 ) -> Result<SimulatedBundle, Box<dyn Error>> {
     let current_block = ws_provider.get_block_number().await?;
 
@@ -68,23 +68,22 @@ pub async fn simulate_bundle(
     Ok(simulated_bundle)
 }
 
+// for testing
+// let _to = NameOrAddress::from("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc");
+// let _data = Bytes::from_static(
+//     b"0xe97ed6120000000000000000000000000000000000000000000000000000000000087e6f",
+// );
 
-    // for testing
-    // let _to = NameOrAddress::from("0xd9Bea83c659a3D8317a8f1fecDc6fe5b3298AEcc");
-    // let _data = Bytes::from_static(
-    //     b"0xe97ed6120000000000000000000000000000000000000000000000000000000000087e6f",
-    // );
-
-    // let bundle_payload = relayer::simulate_bundle(
-    //     _to,
-    //     _data,
-    //     &flashbot_client.clone(),
-    //     &ws_provider.clone().unwrap(),
-    //     &wallet.clone(),
-    //     &chain_id.unwrap(),
-    // )
-    // .await?;
-    // println!("simulated_bundle: {:?}", bundle_payload);
+// let bundle_payload = relayer::simulate_bundle(
+//     _to,
+//     _data,
+//     &flashbot_client.clone(),
+//     &ws_provider.clone().unwrap(),
+//     &wallet.clone(),
+//     &chain_id.unwrap(),
+// )
+// .await?;
+// println!("simulated_bundle: {:?}", bundle_payload);
 
 /// Helper function to help catch the various ways errors can be thrown from simulation
 /// This helper function is needed as simulation response has many ways where the
