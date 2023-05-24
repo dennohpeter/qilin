@@ -1,11 +1,11 @@
-use cfmms::pool;
+use cfmms::dex;
 use ethers::prelude::*;
 use std::{
     hash::{Hash, Hasher},
     str::FromStr,
 };
 
-// pub struct PoolVariant(pool::Pool);
+pub type PoolVariant = dex::DexVariant;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Pool {
@@ -14,12 +14,6 @@ pub struct Pool {
     pub token_1: Address,
     pub swap_fee: U256,
     pub pool_variant: PoolVariant,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PoolVariant {
-    UniswapV2,
-    UniswapV3,
 }
 
 impl Pool {
@@ -47,23 +41,18 @@ impl Pool {
     }
 }
 
-impl PoolVariant {
-    pub fn pool_created_event_signature(&self) -> H256 {
-        match self {
-            PoolVariant::UniswapV2 => {
-                H256::from_str("0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9")
-                    .unwrap()
-            }
-            PoolVariant::UniswapV3 => {
-                H256::from_str("0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118")
-                    .unwrap()
-            }
-        }
-    }
-}
+// impl PoolVariant {
+//     pub fn pool_created_event_signature(&self) -> H256 {
+//         match self {
+//             PoolVariant::UniswapV2 => {
+//                 H256::from_str("0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9")
+//                     .unwrap()
+//             }
+//             PoolVariant::UniswapV3 => {
+//                 H256::from_str("0x783cca1c0412dd0d695e784568c96da2e9c22ff989357a2e8b1d9b2b4e6b7118")
+//                     .unwrap()
+//             }
+//         }
+//     }
+// }
 
-impl Hash for Pool {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.address.hash(state);
-    }
-}

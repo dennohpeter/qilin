@@ -18,6 +18,7 @@ use crate::bindings::{
 };
 use crate::utils::constants::WETH_ADDRESS;
 
+#[derive(Clone, Copy)]
 pub struct RequestThrottle {
     enabled: bool,
     last_request_timestamp: SystemTime,
