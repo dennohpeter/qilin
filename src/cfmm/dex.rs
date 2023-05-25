@@ -16,7 +16,10 @@ use crate::bindings::{
     uniswap_v2_factory::uniswap_v2_factory_contract,
     uniswap_v3_factory::uniswap_v3_factory_contract,
 };
-use crate::utils::constants::WETH_ADDRESS;
+use crate::utils::constants::{
+    WETH_ADDRESS,
+    USDC_ADDRESS
+};
 
 #[derive(Clone, Copy)]
 pub struct RequestThrottle {
@@ -82,13 +85,15 @@ impl Dex {
     }
 
     // Parse logs and extract pools
-    pub fn new_pool_from_event(&self, log: Log, provider: Arc<Provider<Ws>>) -> Option<Pool> {
+    pub async fn new_pool_from_event(
+        &self, 
+        log: Log, provider: Arc<Provider<Ws>>, 
+    ) -> Option<Pool> {
         match self.pool_variant {
             PoolVariant::UniswapV2 => {
-                // let uniswap_v2_factory = UniswapV2Factory::new(self.factory_address, provider);
                 let uniswap_v2_factory = uniswap_v2_factory_contract::uniswap_v2_factory::new(
                     self.factory_address,
-                    provider,
+                    provider.clone(),
                 );
                 let (token_0, token_1, address, _) = if let Ok(pair) = uniswap_v2_factory
                     .decode_event::<(Address, Address, Address, U256)>(
@@ -102,23 +107,32 @@ impl Dex {
                 };
 
                 // ignore pool does not have weth as one of its tokens
-                if ![token_0, token_1].contains(&WETH_ADDRESS.parse::<H160>().ok()?) {
+                // if ![token_0, token_1].contains(&WETH_ADDRESS.parse::<H160>().ok()?) {
+                //     return None;
+                // }
+                if ![token_0, token_1].contains(&USDC_ADDRESS.parse::<H160>().ok()?) {
                     return None;
                 }
 
-                Some(Pool::new(
+
+                let _pool = Pool::new(
+                    provider.clone(),
                     address,
                     token_0,
                     token_1,
                     U256::from(3000),
                     PoolVariant::UniswapV2,
-                ))
+                ).await;
+                if let Some(pool) = _pool {
+                    Some(pool)
+                } else {
+                    None
+                }
             }
             PoolVariant::UniswapV3 => {
-                // let uniswap_v3_factory = UniswapV3Factory::new(self.factory_address, provider);
                 let uniswap_v3_factory = uniswap_v3_factory_contract::uniswap_v3_factory::new(
                     self.factory_address,
-                    provider,
+                    provider.clone(),
                 );
 
                 let (token_0, token_1, fee, _, address) = if let Ok(pool) = uniswap_v3_factory
@@ -133,17 +147,28 @@ impl Dex {
                 };
 
                 // ignore pair does not have weth as one of its tokens
-                if ![token_0, token_1].contains(&WETH_ADDRESS.parse::<H160>().ok()?) {
+                // if ![token_0, token_1].contains(&WETH_ADDRESS.parse::<H160>().ok()?) {
+                //     return None;
+                // }
+                if ![token_0, token_1].contains(&USDC_ADDRESS.parse::<H160>().ok()?) {
                     return None;
                 }
 
-                Some(Pool::new(
+                let _pool = Pool::new(
+                    provider.clone(),
                     address,
                     token_0,
                     token_1,
                     U256::from(fee),
                     PoolVariant::UniswapV3,
-                ))
+                ).await;
+
+
+                if let Some(pool) = _pool {
+                    Some(pool)
+                } else {
+                    None
+                }
             }
         }
     }
@@ -211,6 +236,8 @@ pub async fn sync_dex(
             Err(join_error) => return Err(PairSyncError::JoinError(join_error)),
         }
     }
+    println!("Synced {} Pairs", aggregated_pools.len());
+    println!("Pools: {:?}", aggregated_pools);
 
     // return the populated aggregated pools vec
     Ok(aggregated_pools)
@@ -273,10 +300,15 @@ async fn get_all_pools(
 
             // increment the progres bar by the step
             progress_bar.inc(step as u64);
+            let inner_req_throttle = Arc::new(Mutex::new(RequestThrottle::new(5)));
 
             // for each pair created log, create a new Pair type and add it to the pairs vec
             for log in logs {
-                match dex.new_pool_from_event(log, provider.clone()) {
+                inner_req_throttle
+                    .lock()
+                    .expect("Could not acquire Mutex")
+                    .increment_or_sleep(1);
+                match dex.new_pool_from_event(log, provider.clone()).await {
                     Some(pool) => pools.push(pool),
                     None => continue,
                 }
@@ -286,14 +318,17 @@ async fn get_all_pools(
         }));
     }
 
-    // wait for each thread to finish and aggregate the pairs from each Dex into a single aggregated pairs vec
     let mut aggregated_pairs: Vec<Pool> = vec![];
+    let mut handled = 0;
     for handle in handles {
+        println!("Handled {:?} Pools", handled);
+        handled += 1;
         match handle.await {
             Ok(sync_result) => aggregated_pairs.extend(sync_result?),
             Err(join_error) => return Err(PairSyncError::JoinError(join_error)),
         }
     }
+    println!("{:?}", aggregated_pairs);
     Ok(aggregated_pairs)
 }
 

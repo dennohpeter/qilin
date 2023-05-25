@@ -180,11 +180,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             17310000,
         ),
         //Add UniswapV3
-        dex::Dex::new(
-            UNISWAP_V3_FACTORY.parse::<H160>()?,
-            PoolVariant::UniswapV3,
-            17310000,
-        ),
+        // dex::Dex::new(
+        //     UNISWAP_V3_FACTORY.parse::<H160>()?,
+        //     PoolVariant::UniswapV3,
+        //     17310000,
+        // ),
     ];
 
     let current_block = ws_provider.as_ref().get_block_number().await?;
