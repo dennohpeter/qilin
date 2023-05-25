@@ -1,13 +1,10 @@
-use cfmms::{
-    dex,
-    pool
-};
+use cfmms::{dex, pool};
 use ethers::prelude::*;
+use std::sync::Arc;
 use std::{
     hash::{Hash, Hasher},
     str::FromStr,
 };
-use std::sync::Arc;
 
 pub type PoolVariant = dex::DexVariant;
 pub type PoolType = pool::Pool;
@@ -40,39 +37,36 @@ impl Pool {
         match pool_variant {
             PoolVariant::UniswapV2 => {
                 // TODO: function to query pool info
-                if let Ok(_pool_type) = pool::UniswapV2Pool::new_from_address(address, provider).await{
-
+                if let Ok(_pool_type) =
+                    pool::UniswapV2Pool::new_from_address(address, provider).await
+                {
                     println!("Getting Uni V2 Pool: {:?}", _pool_type);
 
-                    Some(
-                        Pool {
-                            address,
-                            token_0,
-                            token_1,
-                            swap_fee,
-                            pool_variant,
-                            pool_type: PoolType::UniswapV2(_pool_type)
-                        }
-                    )
+                    Some(Pool {
+                        address,
+                        token_0,
+                        token_1,
+                        swap_fee,
+                        pool_variant,
+                        pool_type: PoolType::UniswapV2(_pool_type),
+                    })
                 } else {
                     None
                 }
             }
             PoolVariant::UniswapV3 => {
-                if let Ok(_pool_type) = pool::UniswapV3Pool::new_from_address(address, provider).await {
+                if let Ok(_pool_type) =
+                    pool::UniswapV3Pool::new_from_address(address, provider).await
+                {
                     println!("Getting Uni V3 Pool: {:?}", _pool_type);
-                    Some(
-
-
-                        Pool {
-                            address,
-                            token_0,
-                            token_1,
-                            swap_fee,
-                            pool_variant,
-                            pool_type: PoolType::UniswapV3(_pool_type)
-                        }
-                    )
+                    Some(Pool {
+                        address,
+                        token_0,
+                        token_1,
+                        swap_fee,
+                        pool_variant,
+                        pool_type: PoolType::UniswapV3(_pool_type),
+                    })
                 } else {
                     None
                 }
@@ -80,6 +74,3 @@ impl Pool {
         }
     }
 }
-
-
-

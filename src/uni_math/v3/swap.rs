@@ -206,6 +206,7 @@ mod test {
         uniswap_v3_router_1::uni_v3_swap_router_1_contract,
         uniswap_v3_weth_dai_lp::uniswap_v3_weth_dai_lp_contract, weth::weth_contract,
     };
+    use crate::uni_math::v3::utils::v3_get_ticks;
     use crate::utils::constants::{
         DAI_ADDRESS, UNISWAP_V3_ROUTER_1, UNISWAP_V3_WETH_DAI_LP, WETH_ADDRESS,
     };
@@ -215,10 +216,9 @@ mod test {
         signers::LocalWallet,
         types::{TransactionReceipt, H160},
     };
+    use ethers::{types::U256, utils::parse_units};
     use std::error::Error;
     use std::sync::Arc;
-    use ethers::{types::U256, utils::parse_units};
-    use crate::uni_math::v3::utils::v3_get_ticks;
 
     #[tokio::test]
     async fn test_swap() -> Result<(), Box<dyn Error>> {

@@ -16,10 +16,7 @@ use crate::bindings::{
     uniswap_v2_factory::uniswap_v2_factory_contract,
     uniswap_v3_factory::uniswap_v3_factory_contract,
 };
-use crate::utils::constants::{
-    WETH_ADDRESS,
-    USDC_ADDRESS
-};
+use crate::utils::constants::{USDC_ADDRESS, WETH_ADDRESS};
 
 #[derive(Clone, Copy)]
 pub struct RequestThrottle {
@@ -85,10 +82,7 @@ impl Dex {
     }
 
     // Parse logs and extract pools
-    pub async fn new_pool_from_event(
-        &self, 
-        log: Log, provider: Arc<Provider<Ws>>, 
-    ) -> Option<Pool> {
+    pub async fn new_pool_from_event(&self, log: Log, provider: Arc<Provider<Ws>>) -> Option<Pool> {
         match self.pool_variant {
             PoolVariant::UniswapV2 => {
                 let uniswap_v2_factory = uniswap_v2_factory_contract::uniswap_v2_factory::new(
@@ -114,7 +108,6 @@ impl Dex {
                     return None;
                 }
 
-
                 let _pool = Pool::new(
                     provider.clone(),
                     address,
@@ -122,7 +115,8 @@ impl Dex {
                     token_1,
                     U256::from(3000),
                     PoolVariant::UniswapV2,
-                ).await;
+                )
+                .await;
                 if let Some(pool) = _pool {
                     Some(pool)
                 } else {
@@ -161,8 +155,8 @@ impl Dex {
                     token_1,
                     U256::from(fee),
                     PoolVariant::UniswapV3,
-                ).await;
-
+                )
+                .await;
 
                 if let Some(pool) = _pool {
                     Some(pool)

@@ -14,10 +14,7 @@ use crate::utils::{
     helpers::{connect_to_network, generate_abigen},
     relayer, state_diff,
 };
-use cfmms::pool::{
-    UniswapV2Pool,
-    UniswapV3Pool,
-};
+use cfmms::pool::{UniswapV2Pool, UniswapV3Pool};
 use clap::{arg, Command};
 use dashmap::DashMap;
 use dotenv::dotenv;
