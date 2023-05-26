@@ -326,13 +326,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let fork_factory =
             ForkFactory::new_sandbox_factory(temp_provider.clone(), initial_db, fork_block);
 
-        // create evm simulation handler by setting up `fork_factory`
-        let initial_db = utils::state_diff::to_cache_db(&state_diffs, fork_block, &ws_provider)
-            .await
-            .unwrap();
-        let fork_factory =
-            ForkFactory::new_sandbox_factory(ws_provider.clone(), initial_db, fork_block);
-
         // search for opportunities in all pools that the tx touches (concurrently)
         for mev_pool in mev_pools {
             if !mev_pool.is_weth_input {
