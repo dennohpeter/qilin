@@ -4,28 +4,31 @@ pub mod cfmm;
 pub mod uni_math;
 pub mod utils;
 
+use crate::bindings::weth::weth_contract;
 use crate::cfmm::{
     dex,
     pool::{Pool, PoolVariant},
 };
-use crate::utils::constants::{UNISWAP_V2_FACTORY, UNISWAP_V3_FACTORY};
+use crate::utils::constants::{UNISWAP_V2_FACTORY, UNISWAP_V3_FACTORY, USDC_ADDRESS, WETH_ADDRESS};
 use crate::utils::{
     base_fee_helper,
     helpers::{connect_to_network, generate_abigen},
-    relayer, state_diff,
+    relayer,
+    serialization::{read_pool_data, write_pool_data},
+    state_diff,
 };
 use cfmms::pool::{UniswapV2Pool, UniswapV3Pool};
 use clap::{arg, Command};
 use dashmap::DashMap;
 use dotenv::dotenv;
-use ethers::core::types::{Block, Bytes, U256};
+use ethers::core::types::{Block, U256};
 use ethers::prelude::*;
 use ethers::providers::{Middleware, Provider, Ws};
 use ethers::signers::LocalWallet;
-use ethers::types::NameOrAddress;
 use ethers_flashbots::FlashbotsMiddleware;
 use eyre::Result;
-use rusty::prelude::fork_factory::ForkFactory;
+use log;
+use rusty::prelude::{fork_factory::ForkFactory, make_sandwich, sandwich_types::RawIngredients};
 use std::env;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
@@ -139,6 +142,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let flashbot_client = Arc::new(SignerMiddleware::new(flashbot_middleware, wallet.clone()));
 
+    let _weth_contract =
+        weth_contract::weth::new(WETH_ADDRESS.parse::<H160>()?, Arc::clone(&flashbot_client));
+    let weth_balance = _weth_contract.balance_of(wallet.address()).call().await?;
+
+    let wallet_weth_balance = Arc::new(Mutex::new(weth_balance));
+
     let block: Arc<Mutex<Option<Block<H256>>>> = Arc::new(Mutex::new(None));
     let block_clone = Arc::clone(&block);
 
@@ -169,39 +178,54 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    let dexes = vec![
-        //UniswapV2
-        dex::Dex::new(
-            UNISWAP_V2_FACTORY.parse::<H160>()?,
-            PoolVariant::UniswapV2,
-            17310000,
-        ),
-        //Add UniswapV3
-        // dex::Dex::new(
-        //     UNISWAP_V3_FACTORY.parse::<H160>()?,
-        //     PoolVariant::UniswapV3,
-        //     17310000,
-        // ),
-    ];
+    let all_pools: Arc<DashMap<Address, Pool>> = Arc::new(DashMap::new());
 
-    let current_block = ws_provider.as_ref().get_block_number().await?;
+    match read_pool_data() {
+        Ok(dmap) => {
+            for item in dmap.iter() {
+                let (key, value) = item.pair();
+                // if let Ok(address) = key.try_into() {
+                all_pools.insert(*key, *value);
+                // }
+            }
+        }
+        Err(e) => {
+            println!("Error reading pool data: {}", e);
+            print!("Pulling pool data......");
+            let dexes = vec![
+                //UniswapV2
+                dex::Dex::new(
+                    UNISWAP_V2_FACTORY.parse::<H160>()?,
+                    PoolVariant::UniswapV2,
+                    17330000,
+                ),
+                // Add UniswapV3
+                dex::Dex::new(
+                    UNISWAP_V3_FACTORY.parse::<H160>()?,
+                    PoolVariant::UniswapV3,
+                    17330000,
+                ),
+            ];
 
-    println!("Current Block: {:?}", current_block);
-    let synced_pools = dex::sync_dex(
-        dexes.clone(),
-        &Arc::clone(&ws_provider),
-        current_block,
-        None,
-        2, //throttled for 2 secs
-    )
-    .await?;
+            let current_block = ws_provider.as_ref().get_block_number().await?;
 
-    let all_pools: DashMap<Address, Pool> = DashMap::new();
-    for pool in synced_pools {
-        all_pools.insert(pool.address, pool);
+            println!("Current Block: {:?}", current_block);
+            let synced_pools = dex::sync_dex(
+                dexes.clone(),
+                &Arc::clone(&ws_provider),
+                current_block,
+                None,
+                2, //throttled for 2 secs
+            )
+            .await?;
+
+            for pool in synced_pools {
+                all_pools.insert(pool.address, pool);
+            }
+
+            let _ = write_pool_data(&all_pools);
+        }
     }
-
-    let all_pools = Arc::new(all_pools);
 
     let mut mempool_stream = ws_provider.subscribe_pending_txs().await?;
     println!("Subscribed to pending txs");
@@ -273,6 +297,80 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .unwrap();
         let fork_factory =
             ForkFactory::new_sandbox_factory(temp_provider.clone(), initial_db, fork_block);
+
+        // create evm simulation handler by setting up `fork_factory`
+        let initial_db = utils::state_diff::to_cache_db(&state_diffs, fork_block, &ws_provider)
+            .await
+            .unwrap();
+        let fork_factory =
+            ForkFactory::new_sandbox_factory(ws_provider.clone(), initial_db, fork_block);
+
+        // search for opportunities in all pools that the tx touches (concurrently)
+        for mev_pool in mev_pools {
+            // if !mev_pool.is_weth_input {
+            //     // enhancement: increase opportunities by handling swaps in pools with stables
+            //     log::info!("{:?} [weth_is_output]", victim_tx.hash);
+            //     continue;
+            // } else {
+            //     log::info!(
+            //         "{}",
+            //         format!("{:?} [weth_is_input]", victim_tx.hash).green()
+            //     );
+            // }
+
+            // prepare variables for new thread
+            let data = data.clone();
+            let mev_pool = mev_pool.clone();
+            let mut fork_factory = fork_factory.clone();
+            // let block_oracle = block_oracle.clone();
+            // let sandwich_maker = self.sandwich_maker.clone();
+            let state_diffs = state_diffs.clone();
+
+            tokio::spawn(async move {
+                // enhancement: increase opportunities by handling swaps in pools with stables
+                let input_token = WETH_ADDRESS.parse::<H160>().unwrap();
+                let victim_hash = data.hash;
+
+                // variables used when searching for opportunity
+                // let raw_ingredients = if let Ok(data) = RawIngredients::new(
+                //     &mev_pool.pool,
+                //     vec![data],
+                //     input_token,
+                //     state_diffs,
+                // )
+                // .await
+                // {
+                //     data
+                // } else {
+                //     log::error!("Failed to create raw ingredients for: {:?}", &victim_hash);
+                //     return;
+                // };
+
+                // find optimal input to sandwich tx
+                // let mut optimal_sandwich = match make_sandwich::create_optimal_sandwich(
+                //     &raw_ingredients,
+                //     sandwich_balance,
+                //     &block_oracle.next_block,
+                //     &mut fork_factory,
+                //     &sandwich_maker,
+                // )
+                // .await
+                // {
+                //     Ok(optimal) => optimal,
+                //     Err(e) => {
+                //         log::info!(
+                //             "{}",
+                //             format!("{:?} sim failed due to {:?}", &victim_hash, e)
+                //         );
+                //         return;
+                //     }
+                // };
+
+                // let optimal_sandwich = optimal_sandwich.clone();
+                // let optimal_sandwich_two = optimal_sandwich.clone();
+                // let sandwich_maker = sandwich_maker.clone();
+            });
+        }
     }
 
     Ok(())

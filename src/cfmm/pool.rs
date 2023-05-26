@@ -1,5 +1,6 @@
 use cfmms::{dex, pool};
 use ethers::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::{
     hash::{Hash, Hasher},
@@ -9,7 +10,7 @@ use std::{
 pub type PoolVariant = dex::DexVariant;
 pub type PoolType = pool::Pool;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Pool {
     pub address: Address,
     pub token_0: Address,

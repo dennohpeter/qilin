@@ -101,12 +101,12 @@ impl Dex {
                 };
 
                 // ignore pool does not have weth as one of its tokens
-                // if ![token_0, token_1].contains(&WETH_ADDRESS.parse::<H160>().ok()?) {
-                //     return None;
-                // }
-                if ![token_0, token_1].contains(&USDC_ADDRESS.parse::<H160>().ok()?) {
+                if ![token_0, token_1].contains(&WETH_ADDRESS.parse::<H160>().ok()?) {
                     return None;
                 }
+                // if ![token_0, token_1].contains(&USDC_ADDRESS.parse::<H160>().ok()?) {
+                //     return None;
+                // }
 
                 let _pool = Pool::new(
                     provider.clone(),
@@ -141,12 +141,12 @@ impl Dex {
                 };
 
                 // ignore pair does not have weth as one of its tokens
-                // if ![token_0, token_1].contains(&WETH_ADDRESS.parse::<H160>().ok()?) {
-                //     return None;
-                // }
-                if ![token_0, token_1].contains(&USDC_ADDRESS.parse::<H160>().ok()?) {
+                if ![token_0, token_1].contains(&WETH_ADDRESS.parse::<H160>().ok()?) {
                     return None;
                 }
+                // if ![token_0, token_1].contains(&USDC_ADDRESS.parse::<H160>().ok()?) {
+                //     return None;
+                // }
 
                 let _pool = Pool::new(
                     provider.clone(),

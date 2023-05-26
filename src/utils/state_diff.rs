@@ -9,12 +9,28 @@ use revm::{
     db::{CacheDB, EmptyDB},
     primitives::{AccountInfo, Bytecode},
 };
+use serde::{Serialize, Serializer};
 use std::{
     collections::{btree_map::Entry, BTreeMap},
     sync::Arc,
 };
 
-#[derive(Debug, Clone, Copy)]
+struct SerializedBTreeMap<K, V>(BTreeMap<K, V>);
+
+impl<K, V> Serialize for SerializedBTreeMap<K, V>
+where
+    K: Serialize + Ord,
+    V: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct TradablePool {
     pub pool: Pool,
     pub is_weth_input: bool,
