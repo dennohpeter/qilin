@@ -22,6 +22,7 @@ use clap::{arg, Command};
 use dashmap::DashMap;
 use dotenv::dotenv;
 use ethers::core::types::{Block, U256};
+use tokio::sync::RwLock;
 use ethers::prelude::*;
 use ethers::providers::{Middleware, Provider, Ws};
 use ethers::signers::LocalWallet;
@@ -33,6 +34,14 @@ use std::env;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 use url::Url;
+use rusty::{
+    utils::tx_builder::SandwichMaker,
+    types::BlockOracle,
+    runner::{
+        oracles,
+        state::BotState,
+    },
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -151,6 +160,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let block: Arc<Mutex<Option<Block<H256>>>> = Arc::new(Mutex::new(None));
     let block_clone = Arc::clone(&block);
 
+    let sandwich_maker = Arc::new(SandwichMaker::new().await);
+    let _block_oracle = BlockOracle::new(&ws_provider.clone()).await.unwrap();
+    let mut block_oracle = Arc::new(RwLock::new(_block_oracle));
+
+
     tokio::spawn(async move {
         loop {
             let mut block_stream = if let Ok(stream) = block_provider.subscribe_blocks().await {
@@ -177,6 +191,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         }
     });
+    let inception_block = ws_provider.as_ref().get_block_number().await?;
+    let bot_state = BotState::new(inception_block, &ws_provider.clone()).await?;
+    let bot_state = Arc::new(bot_state);
 
     let all_pools: Arc<DashMap<Address, Pool>> = Arc::new(DashMap::new());
 
@@ -184,22 +201,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Ok(dmap) => {
             for item in dmap.iter() {
                 let (key, value) = item.pair();
-                // if let Ok(address) = key.try_into() {
                 all_pools.insert(*key, *value);
-                // }
             }
         }
         Err(e) => {
             println!("Error reading pool data: {}", e);
             print!("Pulling pool data......");
             let dexes = vec![
-                //UniswapV2
+                // UniswapV2
                 dex::Dex::new(
                     UNISWAP_V2_FACTORY.parse::<H160>()?,
                     PoolVariant::UniswapV2,
                     17330000,
                 ),
-                // Add UniswapV3
+                // UniswapV3
                 dex::Dex::new(
                     UNISWAP_V3_FACTORY.parse::<H160>()?,
                     PoolVariant::UniswapV3,
@@ -227,6 +242,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    oracles::start_block_oracle(&mut block_oracle);
+
     let mut mempool_stream = ws_provider.subscribe_pending_txs().await?;
     println!("Subscribed to pending txs");
 
@@ -235,6 +252,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         let mut data = msg.clone().unwrap_or(Transaction::default());
         let mut next_block_base_fee: Option<U256> = None;
+
+        let bo = {
+            let read_lock = block_oracle.read().await;
+            (*read_lock).clone()
+        };
+
+        let sandwich_balance = {
+            let read_lock = bot_state.weth_balance.read().await;
+            (*read_lock).clone()
+        };
+
 
         match (*block).lock() {
             Ok(blk) => match blk.as_ref() {
@@ -307,66 +335,65 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         // search for opportunities in all pools that the tx touches (concurrently)
         for mev_pool in mev_pools {
-            // if !mev_pool.is_weth_input {
-            //     // enhancement: increase opportunities by handling swaps in pools with stables
-            //     log::info!("{:?} [weth_is_output]", victim_tx.hash);
-            //     continue;
-            // } else {
-            //     log::info!(
-            //         "{}",
-            //         format!("{:?} [weth_is_input]", victim_tx.hash).green()
-            //     );
-            // }
+            if !mev_pool.is_weth_input {
+                // enhancement: increase opportunities by handling swaps in pools with stables
+                log::info!("{:?} [weth_is_output]", data.hash);
+                continue;
+            } else {
+                log::info!(
+                    "{}",
+                    format!("{:?} [weth_is_input]", data.hash)
+                );
+            }
 
             // prepare variables for new thread
             let data = data.clone();
             let mev_pool = mev_pool.clone();
             let mut fork_factory = fork_factory.clone();
-            // let block_oracle = block_oracle.clone();
-            // let sandwich_maker = self.sandwich_maker.clone();
+            let bo = bo.clone();
+            let sandwich_maker = sandwich_maker.clone();
             let state_diffs = state_diffs.clone();
 
             tokio::spawn(async move {
                 // enhancement: increase opportunities by handling swaps in pools with stables
                 let input_token = WETH_ADDRESS.parse::<H160>().unwrap();
-                let victim_hash = data.hash;
+                let _hash = data.hash;
 
                 // variables used when searching for opportunity
-                // let raw_ingredients = if let Ok(data) = RawIngredients::new(
-                //     &mev_pool.pool,
-                //     vec![data],
-                //     input_token,
-                //     state_diffs,
-                // )
-                // .await
-                // {
-                //     data
-                // } else {
-                //     log::error!("Failed to create raw ingredients for: {:?}", &victim_hash);
-                //     return;
-                // };
+                let raw_ingredients = if let Ok(data) = RawIngredients::new(
+                    &mev_pool.pool,
+                    vec![data],
+                    input_token,
+                    state_diffs,
+                )
+                .await
+                {
+                    data
+                } else {
+                    log::error!("Failed to create raw ingredients for: {:?}", &_hash);
+                    return;
+                };
 
                 // find optimal input to sandwich tx
-                // let mut optimal_sandwich = match make_sandwich::create_optimal_sandwich(
-                //     &raw_ingredients,
-                //     sandwich_balance,
-                //     &block_oracle.next_block,
-                //     &mut fork_factory,
-                //     &sandwich_maker,
-                // )
-                // .await
-                // {
-                //     Ok(optimal) => optimal,
-                //     Err(e) => {
-                //         log::info!(
-                //             "{}",
-                //             format!("{:?} sim failed due to {:?}", &victim_hash, e)
-                //         );
-                //         return;
-                //     }
-                // };
+                let mut optimal_sandwich = match make_sandwich::create_optimal_sandwich(
+                    &raw_ingredients,
+                    sandwich_balance,
+                    &bo.next_block,
+                    &mut fork_factory,
+                    &sandwich_maker,
+                )
+                .await
+                {
+                    Ok(optimal) => optimal,
+                    Err(e) => {
+                        log::info!(
+                            "{}",
+                            format!("{:?} sim failed due to {:?}", &_hash, e)
+                        );
+                        return;
+                    }
+                };
 
-                // let optimal_sandwich = optimal_sandwich.clone();
                 // let optimal_sandwich_two = optimal_sandwich.clone();
                 // let sandwich_maker = sandwich_maker.clone();
             });

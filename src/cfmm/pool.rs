@@ -9,6 +9,7 @@ use std::{
 
 pub type PoolVariant = dex::DexVariant;
 pub type PoolType = pool::Pool;
+type RustyPool = rusty::cfmm::Pool;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Pool {
@@ -37,7 +38,6 @@ impl Pool {
         };
         match pool_variant {
             PoolVariant::UniswapV2 => {
-                // TODO: function to query pool info
                 if let Ok(_pool_type) =
                     pool::UniswapV2Pool::new_from_address(address, provider).await
                 {
@@ -74,4 +74,43 @@ impl Pool {
             }
         }
     }
+
+    pub fn to_rp(&self) -> RustyPool {
+        match self.pool_variant {
+            PoolVariant::UniswapV2 => {
+
+                let mut rp: RustyPool = RustyPool::default();
+                if let PoolType::UniswapV2(pool_type) = &self.pool_type {
+                    rp = RustyPool::from(
+                        &self.address,
+                        &self.token_0,
+                        &self.token_1,
+                        &self.swap_fee,
+                        &PoolVariant::UniswapV2,
+                        &PoolType::UniswapV2(*pool_type)
+                    );
+                };
+
+                rp
+            },
+            PoolVariant::UniswapV3 => {
+                let mut rp: RustyPool = RustyPool::default();
+                if let PoolType::UniswapV3(pool_type) = &self.pool_type {
+                    rp = RustyPool::from(
+                        &self.address,
+                        &self.token_0,
+                        &self.token_1,
+                        &self.swap_fee,
+                        &PoolVariant::UniswapV3,
+                        &PoolType::UniswapV3(*pool_type)
+                    );
+                };
+
+                rp
+
+            },
+        }
+
+    }
 }
+

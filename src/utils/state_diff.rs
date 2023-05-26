@@ -9,12 +9,13 @@ use revm::{
     db::{CacheDB, EmptyDB},
     primitives::{AccountInfo, Bytecode},
 };
-use serde::{Serialize, Serializer};
 use std::{
     collections::{btree_map::Entry, BTreeMap},
     sync::Arc,
 };
+use serde::{Serialize, Serializer};
 
+type RustyPool = rusty::cfmm::Pool;
 struct SerializedBTreeMap<K, V>(BTreeMap<K, V>);
 
 impl<K, V> Serialize for SerializedBTreeMap<K, V>
@@ -27,17 +28,19 @@ where
         S: Serializer,
     {
         self.0.serialize(serializer)
+
     }
 }
 
+
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct TradablePool {
-    pub pool: Pool,
+    pub pool: RustyPool,
     pub is_weth_input: bool,
 }
 
 impl TradablePool {
-    pub fn new(pool: Pool, is_weth_input: bool) -> Self {
+    pub fn new(pool: RustyPool, is_weth_input: bool) -> Self {
         Self {
             pool,
             is_weth_input,
@@ -128,7 +131,8 @@ pub fn extract_pools(
             }
             _ => continue,
         };
-        // tradable_pools.push(Tradable::new(pool, is_weth_input));
+        let rp = pool.to_rp();
+        tradable_pools.push(TradablePool::new(rp, is_weth_input));
     }
 
     Some(tradable_pools)
