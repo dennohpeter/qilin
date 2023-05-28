@@ -1,6 +1,8 @@
 use cfmms::{dex, pool};
 use ethers::prelude::*;
 use serde::{Deserialize, Serialize};
+#[allow(unused_imports)]
+use std::mem;
 use std::sync::Arc;
 use std::{
     hash::{Hash, Hasher},
@@ -18,7 +20,7 @@ pub struct Pool {
     pub token_1: Address,
     pub swap_fee: U256,
     pub pool_variant: PoolVariant,
-    pub pool_type: PoolType,
+    pub pool_type: PoolType, // by adding pool_type, we double the struct size to 248 bytes
 }
 
 impl Pool {
@@ -43,14 +45,18 @@ impl Pool {
                 {
                     println!("Getting Uni V2 Pool: {:?}", _pool_type);
 
-                    Some(Pool {
+                    let res = Pool {
                         address,
                         token_0,
                         token_1,
                         swap_fee,
                         pool_variant,
                         pool_type: PoolType::UniswapV2(_pool_type),
-                    })
+                    };
+
+                    // let size  = mem::size_of_val(&res);
+                    // println!("Size of Pool: {:?}", size);
+                    Some(res)
                 } else {
                     None
                 }
@@ -60,14 +66,18 @@ impl Pool {
                     pool::UniswapV3Pool::new_from_address(address, provider).await
                 {
                     println!("Getting Uni V3 Pool: {:?}", _pool_type);
-                    Some(Pool {
+                    let res = Pool {
                         address,
                         token_0,
                         token_1,
                         swap_fee,
                         pool_variant,
                         pool_type: PoolType::UniswapV3(_pool_type),
-                    })
+                    };
+
+                    // let size  = mem::size_of_val(&res);
+                    // println!("Size of Pool: {:?}", size);
+                    Some(res)
                 } else {
                     None
                 }
@@ -78,7 +88,6 @@ impl Pool {
     pub fn to_rp(&self) -> RustyPool {
         match self.pool_variant {
             PoolVariant::UniswapV2 => {
-
                 let mut rp: RustyPool = RustyPool::default();
                 if let PoolType::UniswapV2(pool_type) = &self.pool_type {
                     rp = RustyPool::from(
@@ -87,12 +96,12 @@ impl Pool {
                         &self.token_1,
                         &self.swap_fee,
                         &PoolVariant::UniswapV2,
-                        &PoolType::UniswapV2(*pool_type)
+                        &PoolType::UniswapV2(*pool_type),
                     );
                 };
 
                 rp
-            },
+            }
             PoolVariant::UniswapV3 => {
                 let mut rp: RustyPool = RustyPool::default();
                 if let PoolType::UniswapV3(pool_type) = &self.pool_type {
@@ -102,15 +111,12 @@ impl Pool {
                         &self.token_1,
                         &self.swap_fee,
                         &PoolVariant::UniswapV3,
-                        &PoolType::UniswapV3(*pool_type)
+                        &PoolType::UniswapV3(*pool_type),
                     );
                 };
 
                 rp
-
-            },
+            }
         }
-
     }
 }
-

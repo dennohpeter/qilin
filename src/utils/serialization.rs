@@ -1,11 +1,15 @@
-use crate::cfmm::pool::Pool;
+use crate::cfmm::pool::{Pool, PoolVariant};
 use dashmap::DashMap;
 use ethers::prelude::*;
+use ethers::providers::{Provider, Ws};
+use serde::Serialize;
 use std::collections::BTreeMap;
 use std::error::Error;
+use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum ReadError {
@@ -24,7 +28,10 @@ impl std::fmt::Display for ReadError {
 
 impl Error for ReadError {}
 
-pub fn write_pool_data(dash: &DashMap<Address, Pool>) -> BTreeMap<Address, Pool> {
+pub fn write_pool_data<T>(dash: &DashMap<Address, T>, hash_addr: bool) -> BTreeMap<Address, T>
+where
+    T: Clone + Debug + Serialize,
+{
     let btree_map: BTreeMap<_, _> = dash
         .iter()
         .map(|entry| (*entry.key(), entry.value().clone()))
@@ -32,25 +39,92 @@ pub fn write_pool_data(dash: &DashMap<Address, Pool>) -> BTreeMap<Address, Pool>
 
     let json_data = serde_json::to_string(&btree_map).unwrap();
 
-    let mut file = File::create("src/assets/all_pools.json").unwrap();
-    file.write_all(json_data.as_bytes()).unwrap();
+    if hash_addr {
+        let mut file = File::create("src/assets/all_pools_hashed.json").unwrap();
+        file.write_all(json_data.as_bytes()).unwrap();
+    } else {
+        let mut file = File::create("src/assets/all_pools.json").unwrap();
+        file.write_all(json_data.as_bytes()).unwrap();
+    }
 
     btree_map
 }
 
-pub fn read_pool_data() -> Result<DashMap<Address, Pool>, ReadError> {
-    let json_data = match fs::read_to_string("src/assets/all_pools.json") {
+pub async fn read_pool_data(
+    provider: Arc<Provider<Ws>>,
+) -> Result<(DashMap<Address, Pool>, DashMap<Address, Vec<Pool>>), ReadError> {
+    let pool_json_data = match fs::read_to_string("src/assets/all_pools.json") {
+        Ok(data) => data,
+        Err(_) => return Err(ReadError::FileNotFound),
+    };
+    let hash_json_data = match fs::read_to_string("src/assets/all_pools_hashed.json") {
         Ok(data) => data,
         Err(_) => return Err(ReadError::FileNotFound),
     };
 
-    let btree_map: BTreeMap<Address, Pool> =
-        serde_json::from_str(&json_data).map_err(ReadError::JsonParsingError)?;
+    let pool_btree_map: BTreeMap<Address, Pool> =
+        serde_json::from_str(&pool_json_data).map_err(ReadError::JsonParsingError)?;
+    let hash_pool_btree_map: BTreeMap<Address, Vec<Pool>> =
+        serde_json::from_str(&hash_json_data).map_err(ReadError::JsonParsingError)?;
 
-    let dash_map: DashMap<Address, Pool> = DashMap::new();
-    for (key, value) in btree_map {
-        dash_map.insert(key, value);
+    let pool_dash_map: DashMap<Address, Pool> = DashMap::new();
+    for (addr, _pool) in pool_btree_map {
+        let pool = pool_initializer(&_pool, provider.clone()).await.unwrap();
+
+        pool_dash_map.insert(addr, pool);
     }
 
-    Ok(dash_map)
+    let hash_pool_dash_map: DashMap<Address, Vec<Pool>> = DashMap::new();
+    for (_hash, _pool) in hash_pool_btree_map {
+        hash_pool_dash_map.insert(_hash, _pool);
+    }
+
+    Ok((pool_dash_map, hash_pool_dash_map))
+}
+
+async fn pool_initializer(_pool: &Pool, provider: Arc<Provider<Ws>>) -> Option<Pool> {
+    match _pool.pool_variant {
+        PoolVariant::UniswapV2 => {
+            let address = _pool.address;
+            let token_0 = _pool.token_0;
+            let token_1 = _pool.token_1;
+
+            let _pool = Pool::new(
+                provider.clone(),
+                address,
+                token_0,
+                token_1,
+                U256::from(3000),
+                PoolVariant::UniswapV2,
+            )
+            .await;
+            if let Some(pool) = _pool {
+                Some(pool)
+            } else {
+                None
+            }
+        }
+        PoolVariant::UniswapV3 => {
+            let address = _pool.address;
+            let token_0 = _pool.token_0;
+            let token_1 = _pool.token_1;
+            let fee = _pool.swap_fee;
+
+            let _pool = Pool::new(
+                provider.clone(),
+                address,
+                token_0,
+                token_1,
+                U256::from(fee),
+                PoolVariant::UniswapV3,
+            )
+            .await;
+
+            if let Some(pool) = _pool {
+                Some(pool)
+            } else {
+                None
+            }
+        }
+    }
 }

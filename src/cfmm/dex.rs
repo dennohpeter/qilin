@@ -16,8 +16,7 @@ use crate::bindings::{
     uniswap_v2_factory::uniswap_v2_factory_contract,
     uniswap_v3_factory::uniswap_v3_factory_contract,
 };
-use crate::utils::constants::{USDC_ADDRESS, WETH_ADDRESS};
-
+use crate::utils::constants::WETH_ADDRESS;
 
 #[derive(Clone, Copy)]
 pub struct RequestThrottle {
@@ -46,16 +45,16 @@ impl RequestThrottle {
         }
     }
 
-    pub fn increment_or_sleep(&mut self, inc: usize) {
+    pub fn increment_or_sleep(&mut self, inc: usize, interval: u128) {
         let time_elapsed = self
             .last_request_timestamp
             .elapsed()
             .expect("Could not get time elapsed from last request timestamp")
             .as_millis();
 
-        if self.enabled && time_elapsed < 1000 {
+        if self.enabled && time_elapsed < interval {
             if self.requests_per_second >= self.requests_per_second_limit {
-                sleep(Duration::from_secs(1));
+                sleep(Duration::from_secs(2));
                 self.requests_per_second = 0;
                 self.last_request_timestamp = SystemTime::now();
             } else {
@@ -83,7 +82,12 @@ impl Dex {
     }
 
     // Parse logs and extract pools
-    pub async fn new_pool_from_event(&self, log: Log, provider: Arc<Provider<Ws>>) -> Option<Pool> {
+    pub async fn new_pool_from_event(
+        &self,
+        log: Log,
+        provider: Arc<Provider<Ws>>,
+        req_throttle: Arc<Mutex<RequestThrottle>>,
+    ) -> Option<Pool> {
         match self.pool_variant {
             PoolVariant::UniswapV2 => {
                 let uniswap_v2_factory = uniswap_v2_factory_contract::uniswap_v2_factory::new(
@@ -108,6 +112,10 @@ impl Dex {
                 // if ![token_0, token_1].contains(&USDC_ADDRESS.parse::<H160>().ok()?) {
                 //     return None;
                 // }
+                req_throttle
+                    .lock()
+                    .expect("Could not acquire Mutex")
+                    .increment_or_sleep(1, 5000);
 
                 let _pool = Pool::new(
                     provider.clone(),
@@ -148,6 +156,10 @@ impl Dex {
                 // if ![token_0, token_1].contains(&USDC_ADDRESS.parse::<H160>().ok()?) {
                 //     return None;
                 // }
+                req_throttle
+                    .lock()
+                    .expect("Could not acquire Mutex")
+                    .increment_or_sleep(1, 5000);
 
                 let _pool = Pool::new(
                     provider.clone(),
@@ -269,7 +281,7 @@ async fn get_all_pools(
         req_throttle
             .lock()
             .expect("Could noet acquire Mutex")
-            .increment_or_sleep(2);
+            .increment_or_sleep(2, 1000);
 
         let provider = provider.clone();
         let progress_bar = progress_bar.clone();
@@ -293,30 +305,33 @@ async fn get_all_pools(
                 )
                 .await?;
 
+            let inner_req_throttle = Arc::new(Mutex::new(RequestThrottle::new(1)));
             // increment the progres bar by the step
             progress_bar.inc(step as u64);
-            let inner_req_throttle = Arc::new(Mutex::new(RequestThrottle::new(5)));
 
             // for each pair created log, create a new Pair type and add it to the pairs vec
             for log in logs {
-                inner_req_throttle
-                    .lock()
-                    .expect("Could not acquire Mutex")
-                    .increment_or_sleep(1);
-                match dex.new_pool_from_event(log, provider.clone()).await {
+                match dex
+                    .new_pool_from_event(log, provider.clone(), inner_req_throttle.clone())
+                    .await
+                {
                     Some(pool) => pools.push(pool),
                     None => continue,
                 }
             }
-
             Ok::<Vec<Pool>, ProviderError>(pools)
         }));
     }
 
     let mut aggregated_pairs: Vec<Pool> = vec![];
     let mut handled = 0;
+    let inner_req_throttle = Arc::new(Mutex::new(RequestThrottle::new(1)));
     for handle in handles {
         println!("Handled {:?} Pools", handled);
+        // inner_req_throttle
+        //     .lock()
+        //     .expect("Could not acquire Mutex")
+        //     .increment_or_sleep(1, 2000);
         handled += 1;
         match handle.await {
             Ok(sync_result) => aggregated_pairs.extend(sync_result?),

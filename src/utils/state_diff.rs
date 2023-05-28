@@ -9,11 +9,11 @@ use revm::{
     db::{CacheDB, EmptyDB},
     primitives::{AccountInfo, Bytecode},
 };
+use serde::{Serialize, Serializer};
 use std::{
     collections::{btree_map::Entry, BTreeMap},
     sync::Arc,
 };
-use serde::{Serialize, Serializer};
 
 type RustyPool = rusty::cfmm::Pool;
 struct SerializedBTreeMap<K, V>(BTreeMap<K, V>);
@@ -28,10 +28,8 @@ where
         S: Serializer,
     {
         self.0.serialize(serializer)
-
     }
 }
-
 
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct TradablePool {
@@ -99,7 +97,20 @@ pub async fn get_from_txs(
     Some(merged_state_diffs)
 }
 
-pub fn extract_pools(
+// pub fn extract_arb_pools(
+//     state_diffs: &BTreeMap<Address, AccountDiff>,
+//     all_pools: &DashMap<Address, Pool>,
+// ) -> Option<Vec<TradablePool>> {
+//     let touched_pools: Vec<Pool> = state_diffs
+//         .keys()
+//         .filter_map(|e| all_pools.get(e).map(|p| (*p.value()).clone()))
+//         .collect();
+
+// TODO: update Pool state
+
+// }
+
+pub fn extract_sandwich_pools(
     state_diffs: &BTreeMap<Address, AccountDiff>,
     all_pools: &DashMap<Address, Pool>,
 ) -> Option<Vec<TradablePool>> {
@@ -119,16 +130,19 @@ pub fn extract_pools(
     // find storage mapping index for each pool
     for pool in touched_pools {
         // find mapping storage location
+        // reading balanceOf mapping given the address of the pool's address
         let storage_key = TxHash::from(ethers::utils::keccak256(abi::encode(&[
             abi::Token::Address(pool.address),
             abi::Token::Uint(U256::from(3)),
         ])));
+        // TODO: add the storage slot index getter for any erc20 token
         let is_weth_input = match weth_state_diff.get(&storage_key)? {
             Diff::Changed(c) => {
                 let from = U256::from(c.from.to_fixed_bytes());
                 let to = U256::from(c.to.to_fixed_bytes());
                 to > from
             }
+            // TODO: handle reverse direction
             _ => continue,
         };
         let rp = pool.to_rp();
