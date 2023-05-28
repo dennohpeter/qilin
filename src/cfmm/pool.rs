@@ -4,10 +4,6 @@ use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
 use std::mem;
 use std::sync::Arc;
-use std::{
-    hash::{Hash, Hasher},
-    str::FromStr,
-};
 
 pub type PoolVariant = dex::DexVariant;
 pub type PoolType = pool::Pool;

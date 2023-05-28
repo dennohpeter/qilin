@@ -23,8 +23,8 @@ pub fn ruint_to_u256(r: Uint<256, 4>) -> U256 {
 }
 
 pub fn v3_get_ticks(current_tick: i32, tick_spacing: i32) -> (i32, i32) {
-    return (
+    (
         tick_spacing * (current_tick / tick_spacing),
         tick_spacing * ((current_tick / tick_spacing) + 1),
-    );
+    )
 }

@@ -9,15 +9,13 @@ use crate::cfmm::{
     dex,
     pool::{Pool, PoolVariant},
 };
-use crate::utils::constants::{UNISWAP_V2_FACTORY, UNISWAP_V3_FACTORY, USDC_ADDRESS, WETH_ADDRESS};
+use crate::utils::constants::{UNISWAP_V2_FACTORY, UNISWAP_V3_FACTORY, WETH_ADDRESS};
 use crate::utils::{
     base_fee_helper,
     helpers::{connect_to_network, generate_abigen},
-    relayer,
     serialization::{read_pool_data, write_pool_data},
-    state_diff,
 };
-use cfmms::pool::{UniswapV2Pool, UniswapV3Pool};
+
 use clap::{arg, Command};
 use dashmap::DashMap;
 use dotenv::dotenv;
@@ -27,19 +25,15 @@ use ethers::providers::{Middleware, Provider, Ws};
 use ethers::signers::LocalWallet;
 use ethers_flashbots::FlashbotsMiddleware;
 use eyre::Result;
-use log;
-use rusty::prelude::{fork_factory::ForkFactory, make_sandwich, sandwich_types::RawIngredients};
-use rusty::{
-    runner::{oracles, state::BotState},
-    types::BlockOracle,
-    utils::tx_builder::SandwichMaker,
-};
+
+use rusty::prelude::fork_factory::ForkFactory;
+
 use std::collections::hash_map::DefaultHasher;
 use std::env;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
-use tokio::sync::RwLock;
+
 use url::Url;
 
 #[tokio::main]
@@ -51,7 +45,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // data collection
     let _etherscan_key = env::var("ETHERSCAN_API_KEY").unwrap();
 
-    let llama_url = format!("wss://eth.llamarpc.com");
+    let llama_url = "wss://eth.llamarpc.com".to_string();
 
     let block_provider = Provider::<Ws>::connect(llama_url).await?;
 
@@ -59,7 +53,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let _bundle_signer = env::var("FLASHBOTS_IDENTIFIER")?;
     let bundle_signer = _bundle_signer.parse::<LocalWallet>()?;
 
-    let _wallet = env::var("FLASHBOTS_SIGNER").clone().unwrap();
+    let _wallet = env::var("FLASHBOTS_SIGNER").unwrap();
     let wallet = _wallet.parse::<LocalWallet>().unwrap();
 
     let matches = Command::new("Qi(氣) Bot")
@@ -138,7 +132,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let ws_provider = _ws_provider.unwrap();
     let middleware_url = _middleware_url.unwrap();
-    let chain_id = _chain_id.unwrap();
+    let _chain_id = _chain_id.unwrap();
 
     let mut flashbot_middleware = FlashbotsMiddleware::new(
         ws_provider.clone(),
@@ -154,7 +148,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         weth_contract::weth::new(WETH_ADDRESS.parse::<H160>()?, Arc::clone(&flashbot_client));
     let weth_balance = _weth_contract.balance_of(wallet.address()).call().await?;
 
-    let wallet_weth_balance = Arc::new(Mutex::new(weth_balance));
+    let _wallet_weth_balance = Arc::new(Mutex::new(weth_balance));
 
     let block: Arc<Mutex<Option<Block<H256>>>> = Arc::new(Mutex::new(None));
     let block_clone = Arc::clone(&block);
@@ -189,7 +183,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         }
     });
-    let inception_block = ws_provider.as_ref().get_block_number().await?;
+    let _inception_block = ws_provider.as_ref().get_block_number().await?;
     // let bot_state = BotState::new(inception_block, &ws_provider.clone()).await?;
     // let bot_state = Arc::new(bot_state);
 
@@ -254,7 +248,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 hash_addr_pools
                     .entry(H160::from_low_u64_be(hash))
-                    .and_modify(|pools| pools.push(pool.clone()))
+                    .and_modify(|pools| pools.push(pool))
                     .or_insert_with(|| vec![pool]);
             }
 
@@ -330,10 +324,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         };
 
         // if tx has statediff on pool addr then record it in `mev_pools`
-        let mev_pools = if let Some(mevP) =
+        let _mev_pools = if let Some(mev_p) =
             utils::state_diff::extract_sandwich_pools(&state_diffs, &all_pools)
         {
-            mevP
+            mev_p
         } else {
             continue;
         };
@@ -344,7 +338,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let initial_db = utils::state_diff::to_cache_db(&state_diffs, fork_block, &temp_provider)
             .await
             .unwrap();
-        let fork_factory =
+        let _fork_factory =
             ForkFactory::new_sandbox_factory(temp_provider.clone(), initial_db, fork_block);
 
         // search for opportunities in all pools that the tx touches (concurrently)

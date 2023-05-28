@@ -3,7 +3,6 @@ use ethers::core::types::{Bytes, Eip1559TransactionRequest, NameOrAddress, U256,
 use ethers::prelude::SignerMiddleware;
 use ethers::providers::{Middleware, Provider, Ws};
 use ethers::signers::{LocalWallet, Signer};
-use ethers::solc::resolver::print;
 use ethers::types::transaction::{eip2718::TypedTransaction, eip2930::AccessList};
 use ethers_flashbots::{BundleRequest, BundleTransaction, FlashbotsMiddleware, SimulatedBundle};
 use std::error::Error;
@@ -23,7 +22,7 @@ pub async fn simulate_bundle(
 
     let wallet_address = wallet.address();
     let _nonce = flashbot_client
-        .get_transaction_count(wallet_address.clone(), None)
+        .get_transaction_count(wallet_address, None)
         .await?;
     println!("Nonce: {}", _nonce);
 

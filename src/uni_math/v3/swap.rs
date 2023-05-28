@@ -66,8 +66,8 @@ pub fn swap(
     let mut state = State {
         amount_specified_remaining: amount_specified,
         amount_calculated: I256::zero(),
-        sqrt_price_x96: sqrt_price_x96,
-        tick: tick,
+        sqrt_price_x96,
+        tick,
         liquidity: cache.liquidity_start,
     };
 
@@ -90,7 +90,7 @@ pub fn swap(
 
         while keep_searching {
             match tick_bitmap::next_initialized_tick_within_one_word(
-                &tick_bitmap,
+                tick_bitmap,
                 state.tick,
                 tick_spacing,
                 zero_for_one,
@@ -142,8 +142,7 @@ pub fn swap(
             state.amount_specified_remaining -= I256::from_dec_str(&step.amount_in.to_string())
                 .unwrap()
                 + I256::from_dec_str(&step.fee_amount.to_string()).unwrap();
-            state.amount_calculated =
-                state.amount_calculated - I256::from_dec_str(&step.amount_out.to_string()).unwrap();
+            state.amount_calculated -= I256::from_dec_str(&step.amount_out.to_string()).unwrap();
         } else {
             state.amount_specified_remaining +=
                 I256::from_dec_str(&step.amount_out.to_string()).unwrap();
@@ -190,13 +189,13 @@ pub fn swap(
             amount_specified - state.amount_specified_remaining,
         )
     };
-    return Ok((
+    Ok((
         amount0,
         amount1,
         state.sqrt_price_x96,
         state.liquidity,
         state.tick,
-    ));
+    ))
 }
 
 #[cfg(test)]

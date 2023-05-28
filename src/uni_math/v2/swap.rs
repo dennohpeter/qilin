@@ -21,7 +21,7 @@ pub fn get_tokens_out_from_tokens_in(
             let amount_in_with_fee = val * (U256::from(997));
             let result = (token1_reserve * &amount_in_with_fee)
                 / (token0_reserve * U256::from(1000) + &amount_in_with_fee);
-            return Ok(result);
+            Ok(result)
         }
         None => match token1_in {
             Some(val) => {
@@ -32,11 +32,9 @@ pub fn get_tokens_out_from_tokens_in(
                 let amount_in_with_fee = val * (U256::from(997));
                 let result = (token0_reserve * &amount_in_with_fee)
                     / (token1_reserve * U256::from(1000) + &amount_in_with_fee);
-                return Ok(result);
+                Ok(result)
             }
-            None => {
-                return Err("At least one token needs to be provided").unwrap();
-            }
+            None => Err("At least one token needs to be provided").unwrap(),
         },
     }
 }
@@ -59,7 +57,7 @@ pub fn get_tokens_in_from_tokens_out(
 
             let result = (token1_reserve * val) / ((token0_reserve - val) * (U256::from(997)));
 
-            return Ok(result);
+            Ok(result)
         }
 
         None => match token1_out {
@@ -70,11 +68,9 @@ pub fn get_tokens_in_from_tokens_out(
 
                 let result = (token0_reserve * val) / ((token1_reserve - val) * (U256::from(997)));
 
-                return Ok(result);
+                Ok(result)
             }
-            None => {
-                return Err("At least one token needs to be provided").unwrap();
-            }
+            None => Err("At least one token needs to be provided").unwrap(),
         },
     }
 }

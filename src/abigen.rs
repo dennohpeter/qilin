@@ -1,9 +1,4 @@
-use crate::utils::constants::{
-    DAI_ADDRESS, UNISWAP_UNIVERSAL_ROUTER, UNISWAP_V2_FACTORY, UNISWAP_V2_ROUTER_1,
-    UNISWAP_V2_ROUTER_2, UNISWAP_V3_FACTORY, UNISWAP_V3_QUOTER, UNISWAP_V3_QUOTER_V2,
-    UNISWAP_V3_ROUTER_1, UNISWAP_V3_ROUTER_2, UNISWAP_V3_WETH_DAI_LP, USDC_ADDRESS, USDT_ADDRESS,
-    WETH_ADDRESS,
-};
+use crate::utils::constants::UNISWAP_V3_FACTORY;
 use ethers::core::types::Chain;
 use ethers::etherscan::Client;
 use ethers::prelude::Abigen;
@@ -37,7 +32,7 @@ async fn generate_abigen(
 }
 
 pub async fn generate_abigen_for_addresses() -> Result<(), Box<dyn Error>> {
-    let _etherscan_key = env::var("ETHERSCAN_API_KEY").clone().unwrap();
+    let _etherscan_key = env::var("ETHERSCAN_API_KEY").unwrap();
     let etherscan_client = Client::new(Chain::Mainnet, _etherscan_key).unwrap();
 
     let mut address_book = HashMap::new();

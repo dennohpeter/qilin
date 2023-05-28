@@ -98,11 +98,7 @@ async fn pool_initializer(_pool: &Pool, provider: Arc<Provider<Ws>>) -> Option<P
                 PoolVariant::UniswapV2,
             )
             .await;
-            if let Some(pool) = _pool {
-                Some(pool)
-            } else {
-                None
-            }
+            _pool.map(|pool| pool)
         }
         PoolVariant::UniswapV3 => {
             let address = _pool.address;
@@ -115,16 +111,12 @@ async fn pool_initializer(_pool: &Pool, provider: Arc<Provider<Ws>>) -> Option<P
                 address,
                 token_0,
                 token_1,
-                U256::from(fee),
+                fee,
                 PoolVariant::UniswapV3,
             )
             .await;
 
-            if let Some(pool) = _pool {
-                Some(pool)
-            } else {
-                None
-            }
+            _pool.map(|pool| pool)
         }
     }
 }

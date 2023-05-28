@@ -1,6 +1,7 @@
 use crate::abigen;
 use ethers::core::types::Bytes;
-use ethers::providers::{Middleware, Provider, Ws};
+use ethers::providers::Provider;
+use ethers::providers::Ws;
 use std::error::Error;
 use std::sync::Arc;
 use url::Url;
@@ -46,11 +47,10 @@ pub async fn generate_abigen(arg: Vec<String>) -> Result<(), Box<dyn Error>> {
                 abigen::generate_abigen_for_addresses().await?;
                 return Ok(());
             } else {
-                ()
             }
         }
         None => {
-            println!("");
+            println!();
         }
     }
 
@@ -79,6 +79,6 @@ pub fn decode_revert_bytes(data: &[u8]) -> Result<String, Box<dyn Error>> {
             println!("Decoded string: {}", s);
             Ok(s.to_string())
         }
-        Err(e) => return Err(Box::new(e)),
+        Err(e) => Err(Box::new(e)),
     }
 }
