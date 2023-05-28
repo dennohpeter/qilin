@@ -115,7 +115,7 @@ impl Dex {
                 req_throttle
                     .lock()
                     .expect("Could not acquire Mutex")
-                    .increment_or_sleep(1, 5000);
+                    .increment_or_sleep(1, 8000);
 
                 let _pool = Pool::new(
                     provider.clone(),
@@ -159,7 +159,7 @@ impl Dex {
                 req_throttle
                     .lock()
                     .expect("Could not acquire Mutex")
-                    .increment_or_sleep(1, 5000);
+                    .increment_or_sleep(1, 8000);
 
                 let _pool = Pool::new(
                     provider.clone(),

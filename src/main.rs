@@ -217,14 +217,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 dex::Dex::new(
                     UNISWAP_V2_FACTORY.parse::<H160>()?,
                     PoolVariant::UniswapV2,
-                    // 10000835,
-                    17310000,
+                    10000835,
                 ),
                 // UniswapV3
                 dex::Dex::new(
                     UNISWAP_V3_FACTORY.parse::<H160>()?,
                     PoolVariant::UniswapV3,
-                    17310000,
+                    12369621,
                 ),
             ];
 

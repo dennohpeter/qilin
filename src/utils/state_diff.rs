@@ -97,6 +97,22 @@ pub async fn get_from_txs(
     Some(merged_state_diffs)
 }
 
+// TODO:
+// infra
+// 1. stream tx update from new blocks from rusty's global backend
+// 2. get state diff using trace_call_many
+// 3. update pools
+// 4. unify fork factory
+// arb
+// 1. see which pool changed in the mempool
+// 2. find hash, in all_pools_hashed, then iterate thru all pools
+//    - in each iteration, find arb opportunity
+//    - if more than one exists, pick highest one
+// 3. send bundle
+// integration
+// 1.
+// test uni math
+
 // pub fn extract_arb_pools(
 //     state_diffs: &BTreeMap<Address, AccountDiff>,
 //     all_pools: &DashMap<Address, Pool>,
