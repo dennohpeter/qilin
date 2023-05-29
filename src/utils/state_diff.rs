@@ -97,30 +97,6 @@ pub async fn get_from_txs(
     Some(merged_state_diffs)
 }
 
-// TODO:
-// arb
-// 1. see which pool changed in the mempool
-// 2. find hash, in all_pools_hashed, then iterate thru all pools
-//    - in each iteration, find arb opportunity
-//    - if more than one exists, pick highest one
-// 3. send bundle
-// integration
-// 1.
-// test uni math
-
-// pub fn extract_arb_pools(
-//     state_diffs: &BTreeMap<Address, AccountDiff>,
-//     all_pools: &DashMap<Address, Pool>,
-// ) -> Option<Vec<TradablePool>> {
-//     let touched_pools: Vec<Pool> = state_diffs
-//         .keys()
-//         .filter_map(|e| all_pools.get(e).map(|p| (*p.value()).clone()))
-//         .collect();
-
-// TODO: update Pool state
-
-// }
-
 pub fn extract_sandwich_pools(
     state_diffs: &BTreeMap<Address, AccountDiff>,
     all_pools: &DashMap<Address, Pool>,

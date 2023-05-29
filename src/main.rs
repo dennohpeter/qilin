@@ -1,9 +1,9 @@
 pub mod abigen;
 pub mod bindings;
 pub mod cfmm;
+pub mod state_manager;
 pub mod uni_math;
 pub mod utils;
-pub mod state_manager;
 
 use crate::bindings::weth::weth_contract;
 use crate::cfmm::{
@@ -16,11 +16,10 @@ use crate::utils::{
     helpers::{connect_to_network, generate_abigen},
     serialization::{read_pool_data, write_pool_data},
 };
-use revm::{
-    db::{CacheDB, EmptyDB},
-};
+use revm::db::{CacheDB, EmptyDB};
+use tokio::sync::RwLock;
 
-use crate::state_manager::block_processor::process_block_update;
+use crate::state_manager::block_processor::{process_block_update, update_pools};
 use clap::{arg, Command};
 use dashmap::DashMap;
 use dotenv::dotenv;
@@ -30,6 +29,7 @@ use ethers::providers::{Middleware, Provider, Ws};
 use ethers::signers::LocalWallet;
 use ethers_flashbots::FlashbotsMiddleware;
 use eyre::Result;
+use tokio::sync::oneshot;
 
 use rusty::prelude::fork_factory::ForkFactory;
 
@@ -49,10 +49,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // data collection
     let _etherscan_key = env::var("ETHERSCAN_API_KEY").unwrap();
-
-    let llama_url = "wss://eth.llamarpc.com".to_string();
-
-    let block_provider = Provider::<Ws>::connect(llama_url).await?;
 
     // bundle signing
     let _bundle_signer = env::var("FLASHBOTS_IDENTIFIER")?;
@@ -135,6 +131,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    pub type AllPool = Arc<RwLock<DashMap<Address, Pool>>>;
+
     let ws_provider = _ws_provider.unwrap();
     let middleware_url = _middleware_url.unwrap();
     let _chain_id = _chain_id.unwrap();
@@ -162,16 +160,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // let _block_oracle = BlockOracle::new(&ws_provider.clone()).await.unwrap();
     // let mut block_oracle = Arc::new(RwLock::new(_block_oracle));
 
+    let all_pools: AllPool = Arc::new(RwLock::new(DashMap::new()));
+    // same as above but key is hash of token0 and token1 addresses for faster lookup
+    let hash_addr_pools: Arc<DashMap<H160, Vec<Pool>>> = Arc::new(DashMap::new());
 
     let cache_db = CacheDB::new(EmptyDB::default());
     let fork_block = ws_provider.as_ref().get_block_number().await;
-    let fork_block = fork_block.ok().map(|number| BlockId::Number(BlockNumber::Number(number)));
-    let _fork_factory =
-        Arc::new(ForkFactory::new_sandbox_factory(ws_provider.clone(), cache_db, fork_block));
+    let fork_block = fork_block
+        .ok()
+        .map(|number| BlockId::Number(BlockNumber::Number(number)));
+    let _arb_fork_factory = Arc::new(ForkFactory::new_sandbox_factory(
+        ws_provider.clone(),
+        cache_db,
+        fork_block,
+    ));
 
     let block_provider = ws_provider.clone();
+    let clone_all_pool = all_pools.clone();
+
+    // TODO: move this to block processor
     tokio::spawn(async move {
-        let fork_factory = _fork_factory.clone();
+        let clone_arb_fork_factory = _arb_fork_factory.clone();
+        let clone_all_pool = clone_all_pool.clone();
 
         loop {
             let mut block_stream = if let Ok(stream) = block_provider.subscribe_blocks().await {
@@ -184,29 +194,46 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 *locked_block = Some(new_block.clone());
                 if let Some(number) = new_block.number {
                     println!("New block number: {:?}", number);
-                    let fork_factory = fork_factory.clone();
+                    let arb_fork_factory = clone_arb_fork_factory.clone();
+                    let all_pools = clone_all_pool.clone();
+                    let block_provider = block_provider.clone();
+
+                    let block_tx_shared: Arc<Mutex<Vec<Transaction>>> =
+                        Arc::new(Mutex::new(vec![]));
+                    let block_tx_shared_clone = block_tx_shared.clone();
+
                     tokio::task::spawn_blocking(move || {
+
                         let block_num = number.into();
-                        process_block_update(fork_factory.clone(), block_num).unwrap();	
+                        let block_tx =
+                            process_block_update(arb_fork_factory.clone(), block_num).unwrap();
+
+                        *block_tx_shared_clone.lock().unwrap() = block_tx;
+                    });
+
+                    tokio::spawn(async move {
+                        let block_tx = block_tx_shared.lock().unwrap().clone();
+                        update_pools(
+                            &block_provider.clone(),
+                            &block_tx,
+                            number.into(),
+                            all_pools.clone(),
+                        )
+                        .await;
                     });
                 }
             }
-
         }
     });
-    let _inception_block = ws_provider.as_ref().get_block_number().await?;
     // let bot_state = BotState::new(inception_block, &ws_provider.clone()).await?;
     // let bot_state = Arc::new(bot_state);
 
-    let all_pools: Arc<DashMap<Address, Pool>> = Arc::new(DashMap::new());
-    // same as above but key is hash of token0 and token1 addresses for faster lookup
-    let hash_addr_pools: Arc<DashMap<H160, Vec<Pool>>> = Arc::new(DashMap::new());
-
     match read_pool_data(ws_provider.clone()).await {
         Ok((dmap, pdmap)) => {
+            let write_lock = all_pools.write().await;
             for item in dmap.iter() {
                 let (key, value) = item.pair();
-                all_pools.insert(*key, *value);
+                write_lock.insert(*key, *value);
             }
             for item in pdmap.iter() {
                 let (key, value) = item.pair();
@@ -248,8 +275,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let mut token0;
             let mut token1;
 
+            let write_lock = all_pools.write().await;
             for pool in synced_pools {
-                all_pools.insert(pool.address, pool);
+                write_lock.insert(pool.address, pool);
 
                 token0 = pool.token_0;
                 token1 = pool.token_1;
@@ -262,8 +290,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .and_modify(|pools| pools.push(pool))
                     .or_insert_with(|| vec![pool]);
             }
+            let read_lock = all_pools.read().await;
 
-            let _ = write_pool_data(&all_pools, false);
+            let _ = write_pool_data(&read_lock, false);
             let _ = write_pool_data(&hash_addr_pools, true);
         }
     }
@@ -335,8 +364,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         };
 
         // if tx has statediff on pool addr then record it in `mev_pools`
+        let read_lock = all_pools.read().await;
         let _mev_pools = if let Some(mev_p) =
-            utils::state_diff::extract_sandwich_pools(&state_diffs, &all_pools)
+            utils::state_diff::extract_sandwich_pools(&state_diffs, &read_lock)
         {
             mev_p
         } else {

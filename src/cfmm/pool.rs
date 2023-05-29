@@ -81,6 +81,25 @@ impl Pool {
         }
     }
 
+    pub async fn update_pool_state(&mut self, provider: Arc<Provider<Ws>>) {
+        match self.pool_variant {
+            PoolVariant::UniswapV2 => {
+                if let Ok(_pool_type) =
+                    pool::UniswapV2Pool::new_from_address(self.address, provider.clone()).await
+                {
+                    self.pool_type = PoolType::UniswapV2(_pool_type);
+                }
+            }
+            PoolVariant::UniswapV3 => {
+                if let Ok(_pool_type) =
+                    pool::UniswapV3Pool::new_from_address(self.address, provider.clone()).await
+                {
+                    self.pool_type = PoolType::UniswapV3(_pool_type);
+                }
+            }
+        }
+    }
+
     pub fn to_rp(&self) -> RustyPool {
         match self.pool_variant {
             PoolVariant::UniswapV2 => {
