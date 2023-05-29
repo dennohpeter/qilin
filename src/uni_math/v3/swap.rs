@@ -213,15 +213,16 @@ mod test {
         middleware::SignerMiddleware,
         providers::{Http, Middleware, Provider},
         signers::LocalWallet,
-        types::{TransactionReceipt, H160},
+        types::H160,
     };
     use ethers::{types::U256, utils::parse_units};
     use std::error::Error;
     use std::sync::Arc;
 
     #[tokio::test]
+    #[ignore]
     async fn test_swap() -> Result<(), Box<dyn Error>> {
-        let FIVE_HUNDRED_ETHER: U256 = U256::from(parse_units("500.0", "ether").unwrap());
+        let five_hundred_ether: U256 = U256::from(parse_units("500.0", "ether").unwrap());
         // create a LocalWallet instance from local node's available account's private key
         let wallet: LocalWallet =
             "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
@@ -248,7 +249,7 @@ mod test {
         // deposit 500 ETH to get WETH
         let _weth = weth_instance
             .deposit()
-            .value(FIVE_HUNDRED_ETHER)
+            .value(five_hundred_ether)
             .send()
             .await?
             .await?

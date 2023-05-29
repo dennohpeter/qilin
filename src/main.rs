@@ -3,6 +3,7 @@ pub mod bindings;
 pub mod cfmm;
 pub mod uni_math;
 pub mod utils;
+pub mod state_manager;
 
 use crate::bindings::weth::weth_contract;
 use crate::cfmm::{
@@ -15,7 +16,11 @@ use crate::utils::{
     helpers::{connect_to_network, generate_abigen},
     serialization::{read_pool_data, write_pool_data},
 };
+use revm::{
+    db::{CacheDB, EmptyDB},
+};
 
+use crate::state_manager::block_processor::process_block_update;
 use clap::{arg, Command};
 use dashmap::DashMap;
 use dotenv::dotenv;
@@ -157,30 +162,36 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // let _block_oracle = BlockOracle::new(&ws_provider.clone()).await.unwrap();
     // let mut block_oracle = Arc::new(RwLock::new(_block_oracle));
 
+
+    let cache_db = CacheDB::new(EmptyDB::default());
+    let fork_block = ws_provider.as_ref().get_block_number().await;
+    let fork_block = fork_block.ok().map(|number| BlockId::Number(BlockNumber::Number(number)));
+    let _fork_factory =
+        Arc::new(ForkFactory::new_sandbox_factory(ws_provider.clone(), cache_db, fork_block));
+
+    let block_provider = ws_provider.clone();
     tokio::spawn(async move {
+        let fork_factory = _fork_factory.clone();
+
         loop {
             let mut block_stream = if let Ok(stream) = block_provider.subscribe_blocks().await {
                 stream
             } else {
                 panic!("Failed to connect");
             };
-
             while let Some(new_block) = block_stream.next().await {
                 let mut locked_block = (*block_clone).lock().unwrap();
-                *locked_block = Some(new_block);
-                println!(
-                    "Block Number: {:?}",
-                    locked_block
-                        .as_ref()
-                        .map(|blk| blk.number)
-                        .unwrap()
-                        .unwrap()
-                );
-                println!(
-                    "Block TimeStamp: {:?}",
-                    locked_block.as_ref().map(|blk| blk.timestamp).unwrap()
-                );
+                *locked_block = Some(new_block.clone());
+                if let Some(number) = new_block.number {
+                    println!("New block number: {:?}", number);
+                    let fork_factory = fork_factory.clone();
+                    tokio::task::spawn_blocking(move || {
+                        let block_num = number.into();
+                        process_block_update(fork_factory.clone(), block_num).unwrap();	
+                    });
+                }
             }
+
         }
     });
     let _inception_block = ws_provider.as_ref().get_block_number().await?;

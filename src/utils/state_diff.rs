@@ -98,11 +98,6 @@ pub async fn get_from_txs(
 }
 
 // TODO:
-// infra
-// 1. stream tx update from new blocks from rusty's global backend
-// 2. get state diff using trace_call_many
-// 3. update pools
-// 4. unify fork factory
 // arb
 // 1. see which pool changed in the mempool
 // 2. find hash, in all_pools_hashed, then iterate thru all pools
