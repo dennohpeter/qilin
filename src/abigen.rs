@@ -2,6 +2,7 @@ use crate::utils::constants::UNISWAP_V3_FACTORY;
 use ethers::core::types::Chain;
 use ethers::etherscan::Client;
 use ethers::prelude::Abigen;
+use ethers::prelude::*;
 use ethers::types::H160;
 use std::collections::HashMap;
 use std::env;
@@ -50,6 +51,23 @@ pub async fn generate_abigen_for_addresses() -> Result<(), Box<dyn Error>> {
     // address_book.insert("UNISWAP_V3_QUOTER", UNISWAP_V3_QUOTER);
     // address_book.insert("UNISWAP_V3_QUOTER_V2", UNISWAP_V3_QUOTER_V2);
     // address_book.insert("UNISWAP_V2_FACTORY", UNISWAP_V2_FACTORY);
+    address_book.insert("UNISWAP_V3_FACTORY", UNISWAP_V3_FACTORY);
+
+    let mut parsed_addr;
+    for (name, addr) in address_book {
+        parsed_addr = addr.parse::<H160>()?;
+        generate_abigen(&etherscan_client, name, parsed_addr).await?;
+    }
+
+    Ok(())
+}
+
+pub async fn generate_abigen_for_given_address(address: Address) -> Result<(), Box<dyn Error>> {
+    let _etherscan_key = env::var("ETHERSCAN_API_KEY").unwrap();
+    let etherscan_client = Client::new(Chain::Mainnet, _etherscan_key).unwrap();
+
+    let mut address_book = HashMap::new();
+
     address_book.insert("UNISWAP_V3_FACTORY", UNISWAP_V3_FACTORY);
 
     let mut parsed_addr;

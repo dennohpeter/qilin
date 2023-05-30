@@ -16,7 +16,6 @@ use crate::bindings::{
     uniswap_v2_factory::uniswap_v2_factory_contract,
     uniswap_v3_factory::uniswap_v3_factory_contract,
 };
-use crate::utils::constants::WETH_ADDRESS;
 
 #[derive(Clone, Copy)]
 pub struct RequestThrottle {
@@ -105,13 +104,10 @@ impl Dex {
                     return None;
                 };
 
-                // ignore pool does not have weth as one of its tokens
-                if ![token_0, token_1].contains(&WETH_ADDRESS.parse::<H160>().ok()?) {
-                    return None;
-                }
-                // if ![token_0, token_1].contains(&USDC_ADDRESS.parse::<H160>().ok()?) {
+                // if ![token_0, token_1].contains(&WETH_ADDRESS.parse::<H160>().ok()?) {
                 //     return None;
                 // }
+
                 req_throttle
                     .lock()
                     .expect("Could not acquire Mutex")
@@ -145,13 +141,10 @@ impl Dex {
                     return None;
                 };
 
-                // ignore pair does not have weth as one of its tokens
-                if ![token_0, token_1].contains(&WETH_ADDRESS.parse::<H160>().ok()?) {
-                    return None;
-                }
-                // if ![token_0, token_1].contains(&USDC_ADDRESS.parse::<H160>().ok()?) {
+                // if ![token_0, token_1].contains(&WETH_ADDRESS.parse::<H160>().ok()?) {
                 //     return None;
                 // }
+
                 req_throttle
                     .lock()
                     .expect("Could not acquire Mutex")

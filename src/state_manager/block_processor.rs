@@ -1,5 +1,4 @@
 use crate::cfmm::pool::Pool;
-use crate::utils::constants::WETH_ADDRESS;
 use crate::utils::state_diff::get_from_txs;
 use dashmap::DashMap;
 use ethers::prelude::*;
@@ -14,13 +13,9 @@ pub fn process_block_update(
     block: BlockId,
 ) -> Result<Vec<Transaction>, Box<dyn Error>> {
     let raw_block = fork_factory.get_full_block(block.clone())?;
-
     // turn payload into Vec<Transaction>
     let block_tx = raw_block.transactions;
-    println!("block_tx: {:?}", block_tx);
     Ok(block_tx)
-
-    // create initailDB
 }
 
 pub async fn update_pools(
@@ -35,10 +30,6 @@ pub async fn update_pools(
         } else {
             return None;
         };
-
-    let weth_state_diff = &state_diffs
-        .get(&WETH_ADDRESS.parse::<H160>().unwrap())?
-        .storage;
 
     let read_pool = all_pools.read().await;
 

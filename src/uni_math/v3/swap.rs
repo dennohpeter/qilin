@@ -220,7 +220,7 @@ mod test {
     use std::sync::Arc;
 
     #[tokio::test]
-    #[ignore]
+    // #[ignore]
     async fn test_swap() -> Result<(), Box<dyn Error>> {
         let five_hundred_ether: U256 = U256::from(parse_units("500.0", "ether").unwrap());
         // create a LocalWallet instance from local node's available account's private key
@@ -245,6 +245,19 @@ mod test {
         // create an instance of WETH smart contract fomr binding
         let weth_instance =
             weth_contract::weth::new(WETH_ADDRESS.parse::<H160>()?, Arc::clone(&client));
+
+        let balance_of = weth_instance
+            .balance_of(
+                "0x06da0fd433C1A5d7a4faa01111c044910A184553"
+                    .parse::<H160>()
+                    .unwrap(),
+            )
+            .call()
+            .await?;
+        println!(
+            "Balance of 0x06da0fd433C1A5d7a4faa01111c044910A184553: {:?}",
+            balance_of
+        );
 
         // deposit 500 ETH to get WETH
         let _weth = weth_instance

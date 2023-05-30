@@ -9,7 +9,7 @@ pub type PoolVariant = dex::DexVariant;
 pub type PoolType = pool::Pool;
 type RustyPool = rusty::cfmm::Pool;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct Pool {
     pub address: Address,
     pub token_0: Address,

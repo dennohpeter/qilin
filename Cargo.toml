@@ -46,6 +46,7 @@ cargo-geiger = "0.11.6"
 criterion = "0.5.1"
 petgraph = "0.6.3"
 cargo-watch = "8.4.0"
+hashbrown = "0.13.2"
 
 [dev-dependencies]
 tokio = { version = "1.28.0", features = ["macros", "rt-multi-thread"] }

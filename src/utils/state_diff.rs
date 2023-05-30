@@ -2,7 +2,10 @@ use crate::cfmm::pool::Pool;
 use crate::utils::constants::WETH_ADDRESS;
 use dashmap::DashMap;
 use ethers::types::H160;
+use hashbrown::HashMap;
+use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}};
 
+use crate::utils::slot_finder;
 use ethers::prelude::*;
 use futures::stream::FuturesUnordered;
 use revm::{
@@ -15,6 +18,7 @@ use std::{
     sync::Arc,
 };
 
+type ArbPools = Vec<HashMap<Pool, Vec<Pool>>>;
 type RustyPool = rusty::cfmm::Pool;
 struct SerializedBTreeMap<K, V>(BTreeMap<K, V>);
 
@@ -97,6 +101,84 @@ pub async fn get_from_txs(
     Some(merged_state_diffs)
 }
 
+pub async fn extract_arb_pools(
+    provider: Arc<Provider<Ws>>,
+    state_diffs: &BTreeMap<Address, AccountDiff>,
+    all_pools: &DashMap<Address, Pool>,
+    hash_pools: &Arc<DashMap<H160, Vec<Pool>>> 
+) -> Option<(ArbPools, ArbPools)> {
+
+    let touched_pools: Vec<Pool> = state_diffs
+        .keys()
+        .filter_map(|e| all_pools.get(e).map(|p| (*p.value())))
+        .collect();
+
+    // buy_1 or buy_0 dependent upon which token has higher/lower quantity in the pool after a trade
+    let mut arb_buy_0_pools: ArbPools = vec![];
+    let mut arb_buy_1_pools: ArbPools = vec![];
+
+    for pool in touched_pools {
+
+        let token0 = pool.token_0;
+        let token1 = pool.token_1;
+
+        let token0_state_diff = &state_diffs.get(&token0)?.storage;
+
+        // read the balanceOf mapping from the ERC20 contract
+        let slot = if let Some(slot) =
+            slot_finder::slot_finder(provider.clone(), token0.clone(), pool.address).await
+        {
+            slot
+        } else {
+            // if not found, skip
+            // currently bot don't support Vyper contract balanceOf slot finding
+            break;
+        };
+
+        // key in the balanceOf mapping with pool's address
+        let storage_key = TxHash::from(ethers::utils::keccak256(abi::encode(&[
+            abi::Token::Address(pool.address),
+            abi::Token::Uint(slot),
+        ])));
+
+        // if storage_diff is true, then pool has more token0 than before
+        let storage_diff = match token0_state_diff.get(&storage_key)? {
+            Diff::Changed(c) => {
+                let from = U256::from(c.from.to_fixed_bytes());
+                let to = U256::from(c.to.to_fixed_bytes());
+                to > from
+            }
+            _ => break,
+        };
+        // hash token0 & token1 addresses to key in all the relevant pools from
+        // hash_pools
+        let mut hasher = DefaultHasher::new();
+        token0.hash(&mut hasher);
+        token1.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        let mut pool_map: HashMap<Pool, Vec<Pool>> = HashMap::new();
+        let pools= hash_pools.get(&H160::from_low_u64_be(hash))?;
+        let vec_pool: Vec<Pool> = pools
+                    .iter()
+                    .filter(|p| p.address != pool.address)
+                    .cloned()
+                    .collect();
+
+        pool_map.insert(pool, vec_pool);
+        // if to > from, then pool has more token0 and less token1 than before*
+        // to arb, buy token0 and sell token1 to other pools
+        // *not always the case
+        if storage_diff {
+            arb_buy_0_pools.push(pool_map);
+        } else {
+            arb_buy_1_pools.push(pool_map);
+        }
+
+    }
+    Some((arb_buy_0_pools, arb_buy_1_pools))
+}
+
 pub fn extract_sandwich_pools(
     state_diffs: &BTreeMap<Address, AccountDiff>,
     all_pools: &DashMap<Address, Pool>,
@@ -122,7 +204,7 @@ pub fn extract_sandwich_pools(
             abi::Token::Address(pool.address),
             abi::Token::Uint(U256::from(3)),
         ])));
-        // TODO: add the storage slot index getter for any erc20 token
+
         let is_weth_input = match weth_state_diff.get(&storage_key)? {
             Diff::Changed(c) => {
                 let from = U256::from(c.from.to_fixed_bytes());

@@ -29,7 +29,6 @@ use ethers::providers::{Middleware, Provider, Ws};
 use ethers::signers::LocalWallet;
 use ethers_flashbots::FlashbotsMiddleware;
 use eyre::Result;
-use tokio::sync::oneshot;
 
 use rusty::prelude::fork_factory::ForkFactory;
 
@@ -153,6 +152,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let _wallet_weth_balance = Arc::new(Mutex::new(weth_balance));
 
+    // TODO: delete the option
     let block: Arc<Mutex<Option<Block<H256>>>> = Arc::new(Mutex::new(None));
     let block_clone = Arc::clone(&block);
 
@@ -169,6 +169,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let fork_block = fork_block
         .ok()
         .map(|number| BlockId::Number(BlockNumber::Number(number)));
+
     let _arb_fork_factory = Arc::new(ForkFactory::new_sandbox_factory(
         ws_provider.clone(),
         cache_db,
@@ -203,7 +204,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     let block_tx_shared_clone = block_tx_shared.clone();
 
                     tokio::task::spawn_blocking(move || {
-
                         let block_num = number.into();
                         let block_tx =
                             process_block_update(arb_fork_factory.clone(), block_num).unwrap();
@@ -362,11 +362,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
             format!("{:?}", data.hash);
             continue;
         };
+        /// arb
+        // let arb_read_lock = all_pools.read().await;
+        // let _mev_pools = if let Some(mev_p) =
+        //     utils::state_diff::extract_sandwich_pools(&state_diffs, &arb_read_lock)
+        // {
+        //     mev_p
+        // } else {
+        //     continue;
+        // };
 
-        // if tx has statediff on pool addr then record it in `mev_pools`
-        let read_lock = all_pools.read().await;
+        ////////////////////////////////////////////////////////////////////////////////////////
+        /// sandwich
+        let sand_read_lock = all_pools.read().await;
         let _mev_pools = if let Some(mev_p) =
-            utils::state_diff::extract_sandwich_pools(&state_diffs, &read_lock)
+            utils::state_diff::extract_sandwich_pools(&state_diffs, &sand_read_lock)
         {
             mev_p
         } else {
