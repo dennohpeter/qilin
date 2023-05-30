@@ -40,7 +40,7 @@ pub async fn slot_finder(
         }
     };
 
-    let mut slot = U256::from(0);
+    let mut slot;
     // TODO: use threads
     for i in 0..=100 {
         slot = U256::from(i);
@@ -79,7 +79,7 @@ mod test {
     use std::sync::Arc;
 
     #[tokio::test]
-    async fn test_balanceOf_slot_finder() {
+    async fn test_balance_of_slot_finder() {
         let wallet: LocalWallet =
             "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
                 .parse::<LocalWallet>()

@@ -62,7 +62,7 @@ pub async fn generate_abigen_for_addresses() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub async fn generate_abigen_for_given_address(address: Address) -> Result<(), Box<dyn Error>> {
+pub async fn generate_abigen_for_given_address(_address: Address) -> Result<(), Box<dyn Error>> {
     let _etherscan_key = env::var("ETHERSCAN_API_KEY").unwrap();
     let etherscan_client = Client::new(Chain::Mainnet, _etherscan_key).unwrap();
 

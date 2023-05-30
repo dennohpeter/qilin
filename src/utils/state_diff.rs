@@ -3,7 +3,10 @@ use crate::utils::constants::WETH_ADDRESS;
 use dashmap::DashMap;
 use ethers::types::H160;
 use hashbrown::HashMap;
-use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}};
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
 
 use crate::utils::slot_finder;
 use ethers::prelude::*;
@@ -105,9 +108,8 @@ pub async fn extract_arb_pools(
     provider: Arc<Provider<Ws>>,
     state_diffs: &BTreeMap<Address, AccountDiff>,
     all_pools: &DashMap<Address, Pool>,
-    hash_pools: &Arc<DashMap<H160, Vec<Pool>>> 
+    hash_pools: &Arc<DashMap<H160, Vec<Pool>>>,
 ) -> Option<(ArbPools, ArbPools)> {
-
     let touched_pools: Vec<Pool> = state_diffs
         .keys()
         .filter_map(|e| all_pools.get(e).map(|p| (*p.value())))
@@ -118,7 +120,6 @@ pub async fn extract_arb_pools(
     let mut arb_buy_1_pools: ArbPools = vec![];
 
     for pool in touched_pools {
-
         let token0 = pool.token_0;
         let token1 = pool.token_1;
 
@@ -158,12 +159,12 @@ pub async fn extract_arb_pools(
         let hash = hasher.finish();
 
         let mut pool_map: HashMap<Pool, Vec<Pool>> = HashMap::new();
-        let pools= hash_pools.get(&H160::from_low_u64_be(hash))?;
+        let pools = hash_pools.get(&H160::from_low_u64_be(hash))?;
         let vec_pool: Vec<Pool> = pools
-                    .iter()
-                    .filter(|p| p.address != pool.address)
-                    .cloned()
-                    .collect();
+            .iter()
+            .filter(|p| p.address != pool.address)
+            .cloned()
+            .collect();
 
         pool_map.insert(pool, vec_pool);
         // if to > from, then pool has more token0 and less token1 than before*
@@ -174,7 +175,6 @@ pub async fn extract_arb_pools(
         } else {
             arb_buy_1_pools.push(pool_map);
         }
-
     }
     Some((arb_buy_0_pools, arb_buy_1_pools))
 }

@@ -362,7 +362,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             format!("{:?}", data.hash);
             continue;
         };
-        /// arb
+        // arb
         // let arb_read_lock = all_pools.read().await;
         // let _mev_pools = if let Some(mev_p) =
         //     utils::state_diff::extract_sandwich_pools(&state_diffs, &arb_read_lock)
@@ -372,8 +372,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         //     continue;
         // };
 
-        ////////////////////////////////////////////////////////////////////////////////////////
-        /// sandwich
+        // sandwich
         let sand_read_lock = all_pools.read().await;
         let _mev_pools = if let Some(mev_p) =
             utils::state_diff::extract_sandwich_pools(&state_diffs, &sand_read_lock)
