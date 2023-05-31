@@ -18,6 +18,8 @@ jobs:
     - uses: actions/checkout@v3
     - name: install tmux
       run: sudo apt-get update && sudo apt-get install tmux
+    - name: Force install cargo-make
+      run: cargo install --force cargo-make
     - name: Build
       run: cargo build --verbose
     - name: Run tests
