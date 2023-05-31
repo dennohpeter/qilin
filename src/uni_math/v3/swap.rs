@@ -218,6 +218,7 @@ mod test {
     use ethers::{types::U256, utils::parse_units};
     use std::error::Error;
     use std::sync::Arc;
+    use ethers::types::U64;
 
     #[tokio::test]
     // #[ignore]
@@ -227,11 +228,16 @@ mod test {
         let wallet: LocalWallet =
             "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
                 .parse::<LocalWallet>()?;
-        let provider = Provider::<Http>::try_from("http://localhost:8545")?;
+        let provider = Provider::<Http>::try_from("http://localhost:8545")
+        .expect("Failed to create provider");
 
+        //let clone_provider = provi
         // create a singermiddleware that wraps default provider and wallet
-        let client = Arc::new(SignerMiddleware::new(provider, wallet));
+        let client = Arc::new(SignerMiddleware::new(provider.clone(), wallet));
 
+        let block = provider.clone().get_block_number().await?;
+        let block_number: U64 = block.into();
+        println!("block: {block_number:?}");
         // get account address
         let address = Arc::clone(&client).address();
         println!("Account Address: {:?}", address);
@@ -258,6 +264,7 @@ mod test {
             "Balance of 0x06da0fd433C1A5d7a4faa01111c044910A184553: {:?}",
             balance_of
         );
+        //println!("500: {:?}", five_hundred_ether);
 
         // deposit 500 ETH to get WETH
         let _weth = weth_instance

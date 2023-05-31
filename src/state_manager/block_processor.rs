@@ -70,7 +70,7 @@ mod test {
     #[tokio::test]
     async fn test_process_block_update() {
         // dotenv();
-        let _blast_key = env::var("BLAST_API_KEY").unwrap();
+        let _blast_key = env::var("BLAST_API_KEY").expect("BLAST_API_KEY environment variable not set");
         let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
 
         let result: Result<_, Box<dyn Error>> =
