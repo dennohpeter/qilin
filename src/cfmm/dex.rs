@@ -123,7 +123,6 @@ impl Dex {
                 )
                 .await?;
                 Some(_pool)
-                // _pool.map(|pool| pool)
             }
             PoolVariant::UniswapV3 => {
                 let uniswap_v3_factory = uniswap_v3_factory_contract::uniswap_v3_factory::new(
@@ -161,7 +160,6 @@ impl Dex {
                 )
                 .await?;
                 Some(_pool)
-                // _pool.map(|pool| pool)
             }
         }
     }
