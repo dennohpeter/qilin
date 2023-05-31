@@ -121,8 +121,9 @@ impl Dex {
                     U256::from(3000),
                     PoolVariant::UniswapV2,
                 )
-                .await;
-                _pool.map(|pool| pool)
+                .await?;
+                Some(_pool)
+                // _pool.map(|pool| pool)
             }
             PoolVariant::UniswapV3 => {
                 let uniswap_v3_factory = uniswap_v3_factory_contract::uniswap_v3_factory::new(
@@ -158,9 +159,9 @@ impl Dex {
                     U256::from(fee),
                     PoolVariant::UniswapV3,
                 )
-                .await;
-
-                _pool.map(|pool| pool)
+                .await?;
+                Some(_pool)
+                // _pool.map(|pool| pool)
             }
         }
     }
@@ -310,13 +311,9 @@ async fn get_all_pools(
 
     let mut aggregated_pairs: Vec<Pool> = vec![];
     let mut handled = 0;
-    let _inner_req_throttle = Arc::new(Mutex::new(RequestThrottle::new(1)));
     for handle in handles {
         println!("Handled {:?} Pools", handled);
-        // inner_req_throttle
-        //     .lock()
-        //     .expect("Could not acquire Mutex")
-        //     .increment_or_sleep(1, 2000);
+
         handled += 1;
         match handle.await {
             Ok(sync_result) => aggregated_pairs.extend(sync_result?),

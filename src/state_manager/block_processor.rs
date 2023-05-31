@@ -1,8 +1,9 @@
+use crate::batch_requests;
 use crate::cfmm::pool::Pool;
 use crate::utils::state_diff::get_from_txs;
 use dashmap::DashMap;
 use ethers::prelude::*;
-use ethers::types::BlockId;
+use ethers::types::{BlockId, U64};
 use rusty::prelude::fork_factory::ForkFactory;
 use std::error::Error;
 use std::sync::Arc;
@@ -12,11 +13,14 @@ pub fn process_block_update(
     fork_factory: Arc<ForkFactory>,
     block: BlockId,
 ) -> Result<Vec<Transaction>, Box<dyn Error>> {
+    // call the backend to get the full block
     let raw_block = fork_factory.get_full_block(block.clone())?;
     // turn payload into Vec<Transaction>
     let block_tx = raw_block.transactions;
     Ok(block_tx)
 }
+
+type PoolVariant = cfmms::dex::DexVariant;
 
 pub async fn update_pools(
     client: &Arc<Provider<Ws>>,
@@ -24,8 +28,17 @@ pub async fn update_pools(
     block_num: BlockNumber,
     all_pools: Arc<RwLock<DashMap<Address, Pool>>>,
 ) -> Option<Arc<RwLock<DashMap<Address, Pool>>>> {
+    // get last block number to do the tracing
+    let last_block_num = block_num.as_number()? - U64::from(1);
+
+    // extract the state_diffs
     let state_diffs =
-        if let Some(state_diffs) = get_from_txs(&client.clone(), block_tx, block_num).await {
+        // take the state of last block and trace diffs
+        if let Some(state_diffs) = get_from_txs(
+            &client.clone(),
+            block_tx,
+            ethers::types::BlockNumber::Number(last_block_num)
+        ).await {
             state_diffs
         } else {
             return None;
@@ -33,22 +46,37 @@ pub async fn update_pools(
 
     let read_pool = all_pools.read().await;
 
-    let touched_pools: Vec<Pool> = state_diffs
+    // get v2 and v3 pools that were touched
+    let (mut touched_v3_pools, mut touched_v2_pools): (Vec<Pool>, Vec<Pool>) = state_diffs
         .keys()
         .filter_map(|e| read_pool.get(e).map(|p| (*p.value())))
-        .collect();
-
+        .partition(|pool| matches!(pool.pool_variant, PoolVariant::UniswapV3));
     drop(read_pool);
 
+    // batch update v3 pools
+    let v3_pool_slice = touched_v3_pools.as_mut_slice();
+    batch_requests::uniswap_v3::get_pool_data_batch_request(v3_pool_slice, client.clone())
+        .await
+        .unwrap_or_else(|e| {
+            println!("Error: {}", e);
+        });
     let write_pool = all_pools.write().await;
+    v3_pool_slice.to_vec().into_iter().for_each(|pool| {
+        write_pool.insert(pool.address, pool);
+    });
+    drop(write_pool);
 
-    for pool in touched_pools.iter() {
-        let pool_address = pool.address;
-        if let Some(mut pool_entry) = write_pool.get_mut(&pool_address) {
-            let pool = pool_entry.value_mut();
-            pool.update_pool_state(client.clone()).await;
-        }
-    }
+    // batch update v2 pools
+    let v2_pool_slice = touched_v2_pools.as_mut_slice();
+    batch_requests::uniswap_v2::get_pool_data_batch_request(v2_pool_slice, client.clone())
+        .await
+        .unwrap_or_else(|e| {
+            println!("Error: {}", e);
+        });
+    let write_pool = all_pools.write().await;
+    v2_pool_slice.to_vec().into_iter().for_each(|pool| {
+        write_pool.insert(pool.address, pool);
+    });
     drop(write_pool);
 
     Some(all_pools)

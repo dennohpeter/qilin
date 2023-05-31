@@ -34,6 +34,7 @@ impl Pool {
         } else {
             (token_b, token_a)
         };
+        // TODO: change this to get_pool_data_batch_request, for initial and later updates
         match pool_variant {
             PoolVariant::UniswapV2 => {
                 if let Ok(_pool_type) =

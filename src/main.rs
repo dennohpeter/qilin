@@ -1,6 +1,8 @@
 pub mod abigen;
+pub mod batch_requests;
 pub mod bindings;
 pub mod cfmm;
+pub mod errors;
 pub mod state_manager;
 pub mod uni_math;
 pub mod utils;
@@ -213,7 +215,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                     tokio::spawn(async move {
                         let block_tx = block_tx_shared.lock().unwrap().clone();
-                        update_pools(
+                        let _ = update_pools(
                             &block_provider.clone(),
                             &block_tx,
                             number.into(),
