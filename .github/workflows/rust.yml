@@ -22,5 +22,7 @@ jobs:
       run: cargo install --force cargo-make
     - name: Build
       run: cargo build --verbose
+    - name: Print environment variables
+      run: printenv
     - name: Run tests
       run: cargo make test
