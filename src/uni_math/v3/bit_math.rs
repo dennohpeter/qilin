@@ -59,33 +59,31 @@ pub fn least_significant_bit(mut x: U256) -> Result<u8, UniswapV3MathError> {
 
     let mut r = 255;
 
-    //TODO: update this to use constants for each U256 comparison
-
-    if x & U256::from(u128::MAX) > U256::zero() {
+    if x & U256::from("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF") > U256::zero() {
         r -= 128;
     } else {
         x >>= 128;
     }
 
-    if x & U256::from(u64::MAX) > U256::zero() {
+    if x & U256::from("0x0000000000000000FFFFFFFFFFFFFFFF") > U256::zero() {
         r -= 64;
     } else {
         x >>= 64;
     }
 
-    if x & U256::from(u32::MAX) > U256::zero() {
+    if x & U256::from("0x000000000000000000000000FFFFFFFF") > U256::zero() {
         r -= 32;
     } else {
         x >>= 32;
     }
 
-    if x & U256::from(u16::MAX) > U256::zero() {
+    if x & U256::from("0x0000000000000000000000000000FFFF") > U256::zero() {
         r -= 16;
     } else {
         x >>= 16;
     }
 
-    if x & U256::from(u8::MAX) > U256::zero() {
+    if x & U256::from("0x000000000000000000000000000000FF") > U256::zero() {
         r -= 8;
     } else {
         x >>= 8;
