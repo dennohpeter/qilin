@@ -8,7 +8,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use crate::utils::slot_finder;
+use super::slot_finder;
 use ethers::prelude::*;
 use futures::stream::FuturesUnordered;
 use revm::{

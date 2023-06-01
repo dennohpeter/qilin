@@ -1,4 +1,7 @@
-use cfmms::{dex, pool};
+use cfmms::{
+    dex, pool,
+    pool::{uniswap_v2::UniswapV2Pool, uniswap_v3::UniswapV3Pool},
+};
 use ethers::prelude::*;
 use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
@@ -20,6 +23,58 @@ pub struct Pool {
 }
 
 impl Pool {
+    pub fn new_empty_pool(
+        address: Address,
+        token_a: Address,
+        token_b: Address,
+        swap_fee: U256,
+        pool_variant: PoolVariant,
+    ) -> Self {
+        let (token_0, token_1) = if token_a < token_b {
+            (token_a, token_b)
+        } else {
+            (token_b, token_a)
+        };
+        match pool_variant {
+            PoolVariant::UniswapV2 => {
+                let res = Pool {
+                    address,
+                    token_0,
+                    token_1,
+                    swap_fee,
+                    pool_variant,
+                    pool_type: PoolType::UniswapV2(UniswapV2Pool::new(
+                        address, token_0, 0, token_1, 0, 0, 0, 300,
+                    )),
+                };
+                res
+            }
+            PoolVariant::UniswapV3 => {
+                let res = Pool {
+                    address,
+                    token_0,
+                    token_1,
+                    swap_fee,
+                    pool_variant,
+                    pool_type: PoolType::UniswapV3(UniswapV3Pool::new(
+                        address,
+                        token_0,
+                        0,
+                        token_1,
+                        0,
+                        0,
+                        0,
+                        U256::zero(),
+                        0,
+                        0,
+                        0,
+                    )),
+                };
+                res
+            }
+        }
+    }
+
     // Creates a new pool instance
     pub async fn new(
         provider: Arc<Provider<Ws>>,
@@ -82,6 +137,7 @@ impl Pool {
         }
     }
 
+    // update single pool state
     pub async fn update_pool_state(&mut self, provider: Arc<Provider<Ws>>) {
         match self.pool_variant {
             PoolVariant::UniswapV2 => {

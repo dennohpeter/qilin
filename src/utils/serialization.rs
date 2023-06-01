@@ -82,7 +82,7 @@ pub async fn read_pool_data(
     Ok((pool_dash_map, hash_pool_dash_map))
 }
 
-async fn pool_initializer(_pool: &Pool, provider: Arc<Provider<Ws>>) -> Option<Pool> {
+pub async fn pool_initializer(_pool: &Pool, provider: Arc<Provider<Ws>>) -> Option<Pool> {
     match _pool.pool_variant {
         PoolVariant::UniswapV2 => {
             let address = _pool.address;
@@ -98,7 +98,7 @@ async fn pool_initializer(_pool: &Pool, provider: Arc<Provider<Ws>>) -> Option<P
                 PoolVariant::UniswapV2,
             )
             .await;
-            _pool.map(|pool| pool)
+            _pool
         }
         PoolVariant::UniswapV3 => {
             let address = _pool.address;
@@ -116,7 +116,37 @@ async fn pool_initializer(_pool: &Pool, provider: Arc<Provider<Ws>>) -> Option<P
             )
             .await;
 
-            _pool.map(|pool| pool)
+            _pool
+        }
+    }
+}
+
+pub fn pool_initializer_test(_pool: &Pool) -> Pool {
+    match _pool.pool_variant {
+        PoolVariant::UniswapV2 => {
+            let address = _pool.address;
+            let token_0 = _pool.token_0;
+            let token_1 = _pool.token_1;
+
+            let _pool = Pool::new_empty_pool(
+                address,
+                token_0,
+                token_1,
+                U256::from(3000),
+                PoolVariant::UniswapV2,
+            );
+            _pool
+        }
+        PoolVariant::UniswapV3 => {
+            let address = _pool.address;
+            let token_0 = _pool.token_0;
+            let token_1 = _pool.token_1;
+            let fee = _pool.swap_fee;
+
+            let _pool =
+                Pool::new_empty_pool(address, token_0, token_1, fee, PoolVariant::UniswapV3);
+
+            _pool
         }
     }
 }

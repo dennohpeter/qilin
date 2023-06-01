@@ -21,7 +21,7 @@ use crate::utils::{
 use revm::db::{CacheDB, EmptyDB};
 use tokio::sync::RwLock;
 
-use crate::state_manager::block_processor::{process_block_update, update_pools};
+use crate::state_manager::block_processor::block_update_thread;
 use clap::{arg, Command};
 use dashmap::DashMap;
 use dotenv::dotenv;
@@ -154,9 +154,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let _wallet_weth_balance = Arc::new(Mutex::new(weth_balance));
 
-    // TODO: delete the option
-    let block: Arc<Mutex<Option<Block<H256>>>> = Arc::new(Mutex::new(None));
-    let block_clone = Arc::clone(&block);
 
     // let sandwich_maker = Arc::new(SandwichMaker::new().await);
     // let _block_oracle = BlockOracle::new(&ws_provider.clone()).await.unwrap();
@@ -178,54 +175,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
         fork_block,
     ));
 
+    // TODO: delete the option
+    let block: Arc<Mutex<Block<H256>>> = Arc::new(Mutex::new(Block::default()));
+    let block_clone = Arc::clone(&block);
     let block_provider = ws_provider.clone();
     let clone_all_pool = all_pools.clone();
+    let clone_arb_fork_factory = _arb_fork_factory.clone();
 
-    // TODO: move this to block processor
+    // open a thread to listen on block updates and
+    // update the all pools' states
     tokio::spawn(async move {
-        let clone_arb_fork_factory = _arb_fork_factory.clone();
-        let clone_all_pool = clone_all_pool.clone();
-
-        loop {
-            let mut block_stream = if let Ok(stream) = block_provider.subscribe_blocks().await {
-                stream
-            } else {
-                panic!("Failed to connect");
-            };
-            while let Some(new_block) = block_stream.next().await {
-                let mut locked_block = (*block_clone).lock().unwrap();
-                *locked_block = Some(new_block.clone());
-                if let Some(number) = new_block.number {
-                    println!("New block number: {:?}", number);
-                    let arb_fork_factory = clone_arb_fork_factory.clone();
-                    let all_pools = clone_all_pool.clone();
-                    let block_provider = block_provider.clone();
-
-                    let block_tx_shared: Arc<Mutex<Vec<Transaction>>> =
-                        Arc::new(Mutex::new(vec![]));
-                    let block_tx_shared_clone = block_tx_shared.clone();
-
-                    tokio::task::spawn_blocking(move || {
-                        let block_num = number.into();
-                        let block_tx =
-                            process_block_update(arb_fork_factory.clone(), block_num).unwrap();
-
-                        *block_tx_shared_clone.lock().unwrap() = block_tx;
-                    });
-
-                    tokio::spawn(async move {
-                        let block_tx = block_tx_shared.lock().unwrap().clone();
-                        let _ = update_pools(
-                            &block_provider.clone(),
-                            &block_tx,
-                            number.into(),
-                            all_pools.clone(),
-                        )
-                        .await;
-                    });
-                }
-            }
-        }
+        block_update_thread(
+            block_provider,
+            block_clone,
+            clone_arb_fork_factory,
+            clone_all_pool,
+        )
     });
     // let bot_state = BotState::new(inception_block, &ws_provider.clone()).await?;
     // let bot_state = Arc::new(bot_state);
@@ -237,6 +202,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let (key, value) = item.pair();
                 write_lock.insert(*key, *value);
             }
+            // when read from json, hash_addr_pools' values are never updated
             for item in pdmap.iter() {
                 let (key, value) = item.pair();
                 let pool_vec = value.clone();
@@ -321,15 +287,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // };
 
         match (*block).lock() {
-            Ok(blk) => match blk.as_ref() {
-                Some(blk_ref) => {
-                    next_block_base_fee = Some(base_fee_helper::calculate_next_block_base_fee(
-                        blk_ref.clone(),
-                    ));
-                }
-                None => {
-                    println!("No block available");
-                }
+            Ok(blk) =>  {
+                next_block_base_fee = Some(base_fee_helper::calculate_next_block_base_fee(
+                    blk.clone(),
+                ));
             },
             Err(_) => {
                 println!("Mutex currently taken");
@@ -348,10 +309,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             continue;
         };
 
-        let state_diffs = if let Some(state_diff) = utils::state_diff::get_from_txs(
+        let state_diffs = if let Some(state_diff) = state_manager::state_diff::get_from_txs(
             &Arc::clone(&ws_provider),
             &vec![data.clone()],
-            if let Some(blk) = (*block).lock().unwrap().as_ref() {
+            if let Ok(blk) = (*block).lock() {
                 BlockNumber::Number(blk.number.unwrap())
             } else {
                 BlockNumber::Latest
@@ -377,7 +338,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // sandwich
         let sand_read_lock = all_pools.read().await;
         let _mev_pools = if let Some(mev_p) =
-            utils::state_diff::extract_sandwich_pools(&state_diffs, &sand_read_lock)
+            state_manager::state_diff::extract_sandwich_pools(&state_diffs, &sand_read_lock)
         {
             mev_p
         } else {
@@ -387,9 +348,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             ws_provider.get_block_number().await? + 1,
         )));
         let temp_provider = Arc::clone(&ws_provider);
-        let initial_db = utils::state_diff::to_cache_db(&state_diffs, fork_block, &temp_provider)
-            .await
-            .unwrap();
+        let initial_db =
+            state_manager::state_diff::to_cache_db(&state_diffs, fork_block, &temp_provider)
+                .await
+                .unwrap();
         let _fork_factory =
             ForkFactory::new_sandbox_factory(temp_provider.clone(), initial_db, fork_block);
 

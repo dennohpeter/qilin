@@ -66,6 +66,7 @@ pub async fn get_pool_data_batch_request<M: Middleware>(
                     //If the pool token A is not zero, signaling that the pool data was populated
                     if !pool_data[0].to_owned().into_address().unwrap().is_zero() {
                         let pool = pools.get_mut(pool_idx).unwrap();
+                        println!("pool data: {:?}", pool);
                         //Update the pool data
                         match pool.pool_variant {
                             PoolVariant::UniswapV3 => {

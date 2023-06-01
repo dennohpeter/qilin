@@ -1,13 +1,17 @@
+use super::state_diff::get_from_txs;
 use crate::batch_requests;
 use crate::cfmm::pool::Pool;
-use crate::utils::state_diff::get_from_txs;
 use dashmap::DashMap;
-use ethers::prelude::*;
-use ethers::types::{BlockId, U64};
 use rusty::prelude::fork_factory::ForkFactory;
 use std::error::Error;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::RwLock;
+use ethers::{
+    providers::{Middleware, Provider, Ws},
+    core::types::{Block, U256},
+    prelude::*,
+    types::{BlockId, U64},
+};
 
 pub fn process_block_update(
     fork_factory: Arc<ForkFactory>,
@@ -65,6 +69,7 @@ pub async fn update_pools(
         write_pool.insert(pool.address, pool);
     });
     drop(write_pool);
+    println!("write_pool: {:?}", all_pools);
 
     // batch update v2 pools
     let v2_pool_slice = touched_v2_pools.as_mut_slice();
@@ -81,6 +86,61 @@ pub async fn update_pools(
 
     Some(all_pools)
 }
+
+
+pub async fn block_update_thread(
+    block_provider: Arc<Provider<Ws>>,
+    block_clone: Arc<Mutex<Block<H256>>>,
+    _arb_fork_factory: Arc<ForkFactory>,
+    clone_all_pool: Arc<RwLock<DashMap<H160, Pool>>>,
+) {
+    loop {
+        let mut block_stream = if let Ok(stream) = block_provider.subscribe_blocks().await {
+            stream
+        } else {
+            panic!("Failed to connect");
+        };
+
+        while let Some(new_block) = block_stream.next().await {
+            let mut locked_block = (*block_clone).lock().unwrap();
+            *locked_block = new_block.clone();
+
+            if let Some(number) = new_block.number {
+                println!("New block: {:?}", number);
+
+                let arb_fork_factory = _arb_fork_factory.clone();
+                let all_pools = clone_all_pool.clone();
+                let block_provider = block_provider.clone();
+
+                let block_tx_shared: Arc<Mutex<Vec<Transaction>>> =
+                    Arc::new(Mutex::new(vec![]));
+                let block_tx_shared_clone = block_tx_shared.clone();
+
+                tokio::task::spawn_blocking(move || {
+                    let block_num = number.into();
+                    let block_tx = process_block_update(arb_fork_factory.clone(), block_num)
+                        .unwrap();
+                    println!("block_tx: {:?}", block_tx);
+
+                    *block_tx_shared_clone.lock().unwrap() = block_tx;
+                });
+
+                tokio::spawn(async move {
+                    let block_tx = block_tx_shared.lock().unwrap().clone();
+                    let _ = update_pools(
+                        &block_provider.clone(),
+                        &block_tx,
+                        number.into(),
+                        all_pools.clone(),
+                    )
+                    .await;
+                });
+            }
+        }
+    }
+}
+
+
 
 #[cfg(test)]
 mod test {
