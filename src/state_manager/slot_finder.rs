@@ -15,7 +15,7 @@ pub async fn slot_finder(
     token_address: H160,
     pool_address: H160,
 ) -> Option<U256> {
-    let mut file = File::open("src/bin/erc20.json").unwrap();
+    let mut file = File::open("abi/erc20.json").unwrap();
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
     let abi: Abi = serde_json::from_str(&contents).unwrap();
@@ -71,20 +71,49 @@ pub async fn slot_finder(
 mod test {
 
     use super::*;
-    use ethers::types::U256;
-    use ethers::{providers::Provider, types::H160};
+    // use ethers::prelude::*;
+    // use ethers::types::U256;
+    // use ethers::{
+    //     providers::{Middleware, Provider},
+    //     types::H160,
+    // };
+    // use std::sync::Arc;
+
+    use crate::state_manager::block_processor::process_block_update;
+    use crate::utils::helpers::connect_to_network;
+    use dotenv::dotenv;
+    use ethers::providers::{Middleware, Provider, Ws};
+    use ethers::types::{BlockId, BlockNumber};
+    use futures_util::StreamExt;
+    use revm::db::{CacheDB, EmptyDB};
+    use rusty::prelude::fork_factory::ForkFactory;
+    use std::env;
+    use std::error::Error;
     use std::sync::Arc;
 
     #[tokio::test]
     async fn test_balance_of_slot_finder() {
-        let client = Provider::<Ws>::connect("http://localhost:8545")
-            .await
-            .unwrap();
+        //let provider = Arc::new(client.clone());
+        dotenv().ok();
+        let _blast_key = env::var("BLAST_API_KEY").unwrap();
+        let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
 
-        let provider = Arc::new(client.clone());
+        let result: Result<_, Box<dyn Error>> =
+            connect_to_network(&mainnet_blast_url, "https://relay.flashbots.net", 1).await;
+
+        let mut _ws_provider: Option<Arc<Provider<Ws>>> = None;
+        match result {
+            Ok((ws, _, _)) => {
+                _ws_provider = Some(ws);
+            }
+            Err(e) => {
+                println!("Error: {}", e);
+            }
+        }
+
+        let ws_provider = _ws_provider.unwrap();
 
         let val = slot_finder(
-            provider.clone(),
             "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
                 .parse::<H160>()
                 .unwrap(),

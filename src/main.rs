@@ -154,7 +154,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let _wallet_weth_balance = Arc::new(Mutex::new(weth_balance));
 
-
     // let sandwich_maker = Arc::new(SandwichMaker::new().await);
     // let _block_oracle = BlockOracle::new(&ws_provider.clone()).await.unwrap();
     // let mut block_oracle = Arc::new(RwLock::new(_block_oracle));
@@ -287,11 +286,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // };
 
         match (*block).lock() {
-            Ok(blk) =>  {
-                next_block_base_fee = Some(base_fee_helper::calculate_next_block_base_fee(
-                    blk.clone(),
-                ));
-            },
+            Ok(blk) => {
+                next_block_base_fee =
+                    Some(base_fee_helper::calculate_next_block_base_fee(blk.clone()));
+            }
             Err(_) => {
                 println!("Mutex currently taken");
             }

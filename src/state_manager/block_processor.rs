@@ -2,16 +2,16 @@ use super::state_diff::get_from_txs;
 use crate::batch_requests;
 use crate::cfmm::pool::Pool;
 use dashmap::DashMap;
+use ethers::{
+    core::types::{Block, U256},
+    prelude::*,
+    providers::{Middleware, Provider, Ws},
+    types::{BlockId, U64},
+};
 use rusty::prelude::fork_factory::ForkFactory;
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 use tokio::sync::RwLock;
-use ethers::{
-    providers::{Middleware, Provider, Ws},
-    core::types::{Block, U256},
-    prelude::*,
-    types::{BlockId, U64},
-};
 
 pub fn process_block_update(
     fork_factory: Arc<ForkFactory>,
@@ -87,7 +87,6 @@ pub async fn update_pools(
     Some(all_pools)
 }
 
-
 pub async fn block_update_thread(
     block_provider: Arc<Provider<Ws>>,
     block_clone: Arc<Mutex<Block<H256>>>,
@@ -112,14 +111,13 @@ pub async fn block_update_thread(
                 let all_pools = clone_all_pool.clone();
                 let block_provider = block_provider.clone();
 
-                let block_tx_shared: Arc<Mutex<Vec<Transaction>>> =
-                    Arc::new(Mutex::new(vec![]));
+                let block_tx_shared: Arc<Mutex<Vec<Transaction>>> = Arc::new(Mutex::new(vec![]));
                 let block_tx_shared_clone = block_tx_shared.clone();
 
                 tokio::task::spawn_blocking(move || {
                     let block_num = number.into();
-                    let block_tx = process_block_update(arb_fork_factory.clone(), block_num)
-                        .unwrap();
+                    let block_tx =
+                        process_block_update(arb_fork_factory.clone(), block_num).unwrap();
                     println!("block_tx: {:?}", block_tx);
 
                     *block_tx_shared_clone.lock().unwrap() = block_tx;
@@ -140,8 +138,6 @@ pub async fn block_update_thread(
     }
 }
 
-
-
 #[cfg(test)]
 mod test {
     use crate::state_manager::block_processor::process_block_update;
@@ -158,7 +154,8 @@ mod test {
     #[tokio::test]
     async fn test_process_block_update() {
         // dotenv();
-        let _blast_key = env::var("BLAST_API_KEY").unwrap();
+        let _blast_key =
+            env::var("BLAST_API_KEY").expect("BLAST_API_KEY environment variable not set");
         let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
 
         let result: Result<_, Box<dyn Error>> =

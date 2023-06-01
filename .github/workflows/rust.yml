@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  ETH_URL: "http://localhost:8545"
 
 jobs:
   build:
@@ -16,7 +17,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: install tmux
+      run: sudo apt-get update && sudo apt-get install tmux
+    - name: Force install cargo-make
+      run: cargo install --force cargo-make
     - name: Build
       run: cargo build --verbose
+    - name: Print environment variables
+      run: printenv
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo make test
