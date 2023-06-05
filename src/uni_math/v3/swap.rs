@@ -1,11 +1,11 @@
 use super::error::UniswapV3MathError;
 use crate::batch_requests;
 use crate::batch_requests::uniswap_v3::UniswapV3TickData;
-use crate::cfmm::pool::{Pool, PoolType, PoolVariant};
+
 use cfmms::errors::CFMMError;
 use cfmms::pool::uniswap_v3::UniswapV3Pool;
 use ethers::providers::{Provider, Ws};
-use ethers::types::{H160, I256, U256};
+use ethers::types::{I256, U256};
 use std::error::Error;
 use std::sync::Arc;
 use uniswap_v3_math::{liquidity_math, tick_math};
@@ -31,9 +31,6 @@ pub struct CurrentState {
     tick: i32,
     liquidity: u128,
 }
-
-const MIN_TICK: i32 = -887272;
-const MAX_TICK: i32 = 887272;
 
 pub struct Tick {
     pub liquidity_gross: u128,
