@@ -4,7 +4,7 @@ use dashmap::DashMap;
 use ethers::types::H160;
 use hashbrown::HashMap;
 use std::{
-    collections::hash_map::DefaultHasher,
+    collections::{hash_map::DefaultHasher, HashSet},
     hash::{Hash, Hasher},
 };
 
@@ -20,8 +20,9 @@ use std::{
     collections::{btree_map::Entry, BTreeMap},
     sync::Arc,
 };
+use tokio::sync::RwLock;
 
-type ArbPools = Vec<HashMap<Pool, Vec<Pool>>>;
+pub type ArbPools = Vec<HashMap<Pool, Vec<Pool>>>;
 type RustyPool = rusty::cfmm::Pool;
 struct SerializedBTreeMap<K, V>(BTreeMap<K, V>);
 
@@ -107,19 +108,25 @@ pub async fn get_from_txs(
 pub async fn extract_arb_pools(
     provider: Arc<Provider<Ws>>,
     state_diffs: &BTreeMap<Address, AccountDiff>,
-    all_pools: &DashMap<Address, Pool>,
+    all_pools: &Arc<RwLock<DashMap<Address, Pool>>>,
     hash_pools: &Arc<DashMap<H160, Vec<Pool>>>,
-) -> Option<(ArbPools, ArbPools)> {
+) -> Option<ArbPools> {
+    let read_lock = all_pools.read().await;
     let touched_pools: Vec<Pool> = state_diffs
         .keys()
-        .filter_map(|e| all_pools.get(e).map(|p| (*p.value())))
+        .filter_map(|e| read_lock.get(e).map(|p| (*p.value())))
         .collect();
+    drop(read_lock);
 
-    // buy_1 or buy_0 dependent upon which token has higher/lower quantity in the pool after a trade
-    let mut arb_buy_0_pools: ArbPools = vec![];
-    let mut arb_buy_1_pools: ArbPools = vec![];
+    let mut arb_pools: ArbPools = vec![];
+
+    let mut exclusion_map: HashSet<Pool> = HashSet::new();
 
     for pool in touched_pools {
+        if exclusion_map.contains(&pool) {
+            continue;
+        };
+
         let token0 = pool.token_0;
         let token1 = pool.token_1;
 
@@ -160,23 +167,27 @@ pub async fn extract_arb_pools(
 
         let mut pool_map: HashMap<Pool, Vec<Pool>> = HashMap::new();
         let pools = hash_pools.get(&H160::from_low_u64_be(hash))?;
-        let vec_pool: Vec<Pool> = pools
-            .iter()
-            .filter(|p| p.address != pool.address)
-            .cloned()
-            .collect();
 
-        pool_map.insert(pool, vec_pool);
-        // if to > from, then pool has more token0 and less token1 than before*
-        // to arb, buy token0 and sell token1 to other pools
-        // *not always the case
         if storage_diff {
-            arb_buy_0_pools.push(pool_map);
+            let mut vec_pool: Vec<Pool> = vec![];
+            for pool in pools.iter().filter(|p| p.address != pool.address) {
+                exclusion_map.insert(pool.clone());
+                vec_pool.push(pool.clone());
+            }
+
+            pool_map.insert(pool, vec_pool);
+
+            // if to > from, then pool has more token0 and less token1 than before*
+            // to arb, buy token0 and sell token1 to other pools
+            // *not always the case
+            arb_pools.push(pool_map);
         } else {
-            arb_buy_1_pools.push(pool_map);
+            // need to add logic to handle when
+            // to < from
+            continue;
         }
     }
-    Some((arb_buy_0_pools, arb_buy_1_pools))
+    Some(arb_pools)
 }
 
 pub fn extract_sandwich_pools(

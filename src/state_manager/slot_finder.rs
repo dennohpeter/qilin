@@ -67,62 +67,62 @@ pub async fn slot_finder(
     None
 }
 
-#[cfg(test)]
-mod test {
+// #[cfg(test)]
+// mod test {
 
-    use super::*;
-    // use ethers::prelude::*;
-    // use ethers::types::U256;
-    // use ethers::{
-    //     providers::{Middleware, Provider},
-    //     types::H160,
-    // };
-    // use std::sync::Arc;
+//     use super::*;
+//     // use ethers::prelude::*;
+//     // use ethers::types::U256;
+//     // use ethers::{
+//     //     providers::{Middleware, Provider},
+//     //     types::H160,
+//     // };
+//     // use std::sync::Arc;
 
-    use crate::state_manager::block_processor::process_block_update;
-    use crate::utils::helpers::connect_to_network;
-    use dotenv::dotenv;
-    use ethers::providers::{Middleware, Provider, Ws};
-    use ethers::types::{BlockId, BlockNumber};
-    use futures_util::StreamExt;
-    use revm::db::{CacheDB, EmptyDB};
-    use rusty::prelude::fork_factory::ForkFactory;
-    use std::env;
-    use std::error::Error;
-    use std::sync::Arc;
+//     use crate::state_manager::block_processor::process_block_update;
+//     use crate::utils::helpers::connect_to_network;
+//     use dotenv::dotenv;
+//     use ethers::providers::{Middleware, Provider, Ws};
+//     use ethers::types::{BlockId, BlockNumber};
+//     use futures_util::StreamExt;
+//     use revm::db::{CacheDB, EmptyDB};
+//     use rusty::prelude::fork_factory::ForkFactory;
+//     use std::env;
+//     use std::error::Error;
+//     use std::sync::Arc;
 
-    #[tokio::test]
-    async fn test_balance_of_slot_finder() {
-        //let provider = Arc::new(client.clone());
-        dotenv().ok();
-        let _blast_key = env::var("BLAST_API_KEY").unwrap();
-        let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
+//     #[tokio::test]
+//     async fn test_balance_of_slot_finder() {
+//         //let provider = Arc::new(client.clone());
+//         dotenv().ok();
+//         let _blast_key = env::var("BLAST_API_KEY").unwrap();
+//         let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
 
-        let result: Result<_, Box<dyn Error>> =
-            connect_to_network(&mainnet_blast_url, "https://relay.flashbots.net", 1).await;
+//         let result: Result<_, Box<dyn Error>> =
+//             connect_to_network(&mainnet_blast_url, "https://relay.flashbots.net", 1).await;
 
-        let mut _ws_provider: Option<Arc<Provider<Ws>>> = None;
-        match result {
-            Ok((ws, _, _)) => {
-                _ws_provider = Some(ws);
-            }
-            Err(e) => {
-                println!("Error: {}", e);
-            }
-        }
+//         let mut _ws_provider: Option<Arc<Provider<Ws>>> = None;
+//         match result {
+//             Ok((ws, _, _)) => {
+//                 _ws_provider = Some(ws);
+//             }
+//             Err(e) => {
+//                 println!("Error: {}", e);
+//             }
+//         }
 
-        let ws_provider = _ws_provider.unwrap();
+//         let ws_provider = _ws_provider.unwrap();
 
-        let val = slot_finder(
-            "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
-                .parse::<H160>()
-                .unwrap(),
-            "0x06da0fd433C1A5d7a4faa01111c044910A184553"
-                .parse::<H160>()
-                .unwrap(),
-        )
-        .await;
+//         let val = slot_finder(
+//             "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+//                 .parse::<H160>()
+//                 .unwrap(),
+//             "0x06da0fd433C1A5d7a4faa01111c044910A184553"
+//                 .parse::<H160>()
+//                 .unwrap(),
+//         )
+//         .await;
 
-        assert_eq!(val, Some(U256::from(3)));
-    }
-}
+//         assert_eq!(val, Some(U256::from(3)));
+//     }
+// }

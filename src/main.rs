@@ -25,10 +25,12 @@ use crate::state_manager::block_processor::block_update_thread;
 use clap::{arg, Command};
 use dashmap::DashMap;
 use dotenv::dotenv;
-use ethers::core::types::{Block, U256};
-use ethers::prelude::*;
-use ethers::providers::{Middleware, Provider, Ws};
-use ethers::signers::LocalWallet;
+use ethers::{
+    core::types::{Block, U256},
+    prelude::*,
+    providers::{Middleware, Provider, Ws},
+    signers::LocalWallet,
+};
 use ethers_flashbots::FlashbotsMiddleware;
 use eyre::Result;
 
@@ -174,7 +176,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         fork_block,
     ));
 
-    // TODO: delete the option
     let block: Arc<Mutex<Block<H256>>> = Arc::new(Mutex::new(Block::default()));
     let block_clone = Arc::clone(&block);
     let block_provider = ws_provider.clone();
@@ -324,14 +325,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
             continue;
         };
         // arb
-        // let arb_read_lock = all_pools.read().await;
-        // let _mev_pools = if let Some(mev_p) =
-        //     utils::state_diff::extract_sandwich_pools(&state_diffs, &arb_read_lock)
-        // {
-        //     mev_p
-        // } else {
-        //     continue;
-        // };
+        let arb_read_lock = all_pools.read().await;
+        let _arb_pools = if let Some(arb_p) = state_manager::state_diff::extract_arb_pools(
+            ws_provider.clone(),
+            &state_diffs,
+            &all_pools,
+            &hash_addr_pools,
+        )
+        .await
+        {
+            arb_p
+        } else {
+            continue;
+        };
 
         // sandwich
         let sand_read_lock = all_pools.read().await;

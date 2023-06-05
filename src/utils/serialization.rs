@@ -121,6 +121,7 @@ pub async fn pool_initializer(_pool: &Pool, provider: Arc<Provider<Ws>>) -> Opti
     }
 }
 
+/// for testing purposes
 pub fn pool_initializer_test(_pool: &Pool) -> Pool {
     match _pool.pool_variant {
         PoolVariant::UniswapV2 => {

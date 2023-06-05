@@ -34,6 +34,12 @@ pub enum UniswapV3MathError {
     R,
     #[error("Overflow when casting to U160")]
     SafeCastToU160Overflow,
+    #[error("Tick data exhausted, need to query new tick data")]
+    TickDataError,
+    #[error("Step Computation Error")]
+    StepComputationError,
+    #[error("Pool type is not recognized")]
+    WrongPoolType,
     #[error("Middleware error when getting next_initialized_tick_within_one_word")]
     MiddlewareError(String),
 }

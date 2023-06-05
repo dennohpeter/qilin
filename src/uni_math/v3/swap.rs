@@ -1,15 +1,30 @@
-// use super::error::UniswapV3MathError;
+use super::error::UniswapV3MathError;
 use super::{liquidity_math, swap_step, tick_bitmap, tick_math};
-use ethers::types::{I256, U256};
-use std::collections::HashMap;
+use crate::batch_requests;
+use crate::batch_requests::uniswap_v3::UniswapV3TickData;
+use crate::cfmm::pool::{Pool, PoolType, PoolVariant};
+use cfmms::errors::CFMMError;
+use cfmms::pool::uniswap_v3::UniswapV3Pool;
+use ethers::providers::{Provider, Ws};
+use ethers::types::{u256_from_f64_saturating, H160, I256, U256};
 use std::error::Error;
+use std::sync::Arc;
 
-struct Cache {
-    liquidity_start: u128,
-    // tick_cumulative: i64,
+pub const MIN_SQRT_RATIO: U256 = U256([4295128739, 0, 0, 0]);
+pub const MAX_SQRT_RATIO: U256 = U256([6743328256752651558, 17280870778742802505, 4294805859, 0]);
+
+#[derive(Default, Clone)]
+pub struct Step {
+    pub sqrt_price_start_x96: U256,
+    pub tick_next: i32,
+    pub initialized: bool,
+    pub sqrt_price_next_x96: U256,
+    pub amount_in: U256,
+    pub amount_out: U256,
+    pub fee_amount: U256,
 }
 
-struct State {
+pub struct CurrentState {
     amount_specified_remaining: I256,
     amount_calculated: I256,
     sqrt_price_x96: U256,
@@ -17,96 +32,161 @@ struct State {
     liquidity: u128,
 }
 
-#[derive(Default)]
-struct Step {
-    sqrt_price_start_x96: U256,
-    tick_next: i32,
-    initialized: bool,
-    sqrt_price_next_x96: U256,
-    amount_in: U256,
-    amount_out: U256,
-    fee_amount: U256,
+const MIN_TICK: i32 = -887272;
+const MAX_TICK: i32 = 887272;
+
+pub struct Tick {
+    pub liquidity_gross: u128,
+    pub liquidity_net: i128,
+    pub fee_growth_outside_0_x_128: U256,
+    pub fee_growth_outside_1_x_128: U256,
+    pub tick_cumulative_outside: U256,
+    pub seconds_per_liquidity_outside_x_128: U256,
+    pub seconds_outside: u32,
+    pub initialized: bool,
 }
 
-pub struct TickData {
-    // tick: i32,
-    liquidity_net: i32,
-    // liquidity_gross: i32,
-}
-
-pub fn swap(
+pub async fn get_pool_data(
+    uniswapv3_pool: UniswapV3Pool,
     zero_for_one: bool,
-    amount_specified: I256,
-    sqrt_price_limit_x96: U256,
-    liquidity: u128,
-    sqrt_price_x96: U256,
-    fee: u32,
-    tick: i32,
-    tick_spacing: i32,
-    tick_bitmap: &mut HashMap<i16, U256>,
-    tick_data: &mut HashMap<i16, TickData>,
-) -> Result<(I256, I256, U256, u128, i32), Box<dyn Error>> {
-    if sqrt_price_limit_x96 == U256::zero() {
-        if zero_for_one {
-            tick_math::MIN_SQRT_RATIO + 1
-        } else {
-            tick_math::MAX_SQRT_RATIO - 1
-        }
+    provider: Arc<Provider<Ws>>,
+) -> Result<
+    (
+        u128,
+        u128,
+        u32,
+        u128,
+        U256,
+        i32,
+        Vec<UniswapV3TickData>,
+        i128,
+    ),
+    CFMMError<Provider<Ws>>,
+> {
+    let fee = uniswapv3_pool.fee;
+    let sqrt_price = uniswapv3_pool.sqrt_price;
+    let tick = uniswapv3_pool.tick;
+    let liquidity = uniswapv3_pool.liquidity;
+    let (reserver_0, reserve_1) = uniswapv3_pool.calculate_virtual_reserves().unwrap();
+
+    let tick_data = if let Ok((tick_data, _)) =
+        batch_requests::uniswap_v3::get_uniswap_v3_tick_data_batch_request(
+            &uniswapv3_pool,
+            tick,
+            zero_for_one,
+            20000, //set it to 20000 for now as cross 20000 ticks swap is unlikely for liquid pools
+            None,
+            provider.clone(),
+        )
+        .await
+    {
+        tick_data
     } else {
-        sqrt_price_limit_x96
+        return Err(CFMMError::NoInitializedTicks);
     };
 
-    let cache = Cache {
-        liquidity_start: liquidity,
-        // tick_cumulative: 0,
-    };
+    let liquidity_net = uniswapv3_pool
+        .get_liquidity_net(tick, provider.clone())
+        .await
+        .unwrap();
 
-    let exact_input = amount_specified > I256::zero();
-
-    let mut state = State {
-        amount_specified_remaining: amount_specified,
-        amount_calculated: I256::zero(),
-        sqrt_price_x96,
+    Ok((
+        reserver_0,
+        reserve_1,
+        fee,
+        liquidity,
+        sqrt_price,
         tick,
-        liquidity: cache.liquidity_start,
+        tick_data,
+        liquidity_net,
+    ))
+}
+
+pub async fn get_tokens_in_from_tokens_out(
+    provider: Arc<Provider<Ws>>,
+    token_out_amt: f64,
+    token_out: &H160,
+    zero_for_one: &bool,
+    fee: &u32,
+    sqrt_price: &U256,
+    tick: &i32,
+    liquidity: &u128,
+    tick_data: &Vec<UniswapV3TickData>,
+) -> Result<f64, CFMMError<Provider<Ws>>> {
+    Ok(f64::from(0))
+    // call swap
+}
+pub fn get_tokens_out_from_tokens_in(token_in: H160, token_in_amt: f64) {}
+
+// function assumes getting exact amount out
+pub fn swap(
+    amount_in: f64,
+    tick: i32,
+    sqrt_price_x96: U256,
+    liquidity: u128,
+    tick_data: Vec<UniswapV3TickData>,
+    liquidity_net: i128,
+    zero_for_one: bool,
+    fee: u32,
+) -> Result<(I256, I256, U256, u128, i32), Box<dyn Error>> {
+    let mut tick_data_iter = tick_data.iter();
+    let mut liquidity_net = liquidity_net;
+
+    let mut state = CurrentState {
+        amount_specified_remaining: I256::from_raw(u256_from_f64_saturating(amount_in)),
+        amount_calculated: I256::from(0),
+        sqrt_price_x96: sqrt_price_x96,
+        tick: tick,
+        liquidity: liquidity,
     };
+
+    let sqrt_price_limit_x96 = if zero_for_one {
+        MIN_SQRT_RATIO + 1
+    } else {
+        MAX_SQRT_RATIO - 1
+    };
+
+    let exact_input = amount_in > 0.0 as f64;
 
     while state.amount_specified_remaining != I256::zero()
         && state.sqrt_price_x96 != sqrt_price_limit_x96
     {
         let mut step = Step {
             sqrt_price_start_x96: state.sqrt_price_x96,
-            tick_next: 0,
-            initialized: false,
-            sqrt_price_next_x96: U256::zero(),
-            amount_in: U256::zero(),
-            amount_out: U256::zero(),
-            fee_amount: U256::zero(),
+            ..Default::default()
         };
 
-        step.sqrt_price_start_x96 = state.sqrt_price_x96;
+        let next_tick_data = if let Some(tick_data) = tick_data_iter.next() {
+            tick_data
+        } else {
+            // currently return if tick_data is exhausted
+            // later should add a function to return a HashMap that represents the tick_bitmap
+            return Err(Box::new(UniswapV3MathError::TickDataError));
+        };
 
-        let mut keep_searching = true;
+        // TODO: add a tick_bitmap finder like balanceOf slot_finder to use here
+        // let mut keep_searching = true;
 
-        while keep_searching {
-            match tick_bitmap::next_initialized_tick_within_one_word(
-                tick_bitmap,
-                state.tick,
-                tick_spacing,
-                zero_for_one,
-            ) {
-                // TODO: if tick is in next word, we need to update the word in the bitmap
-                Ok((tick_next, initialized)) => {
-                    step.tick_next = tick_next.clamp(tick_math::MIN_TICK, tick_math::MAX_TICK);
-                    step.sqrt_price_next_x96 = tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
-                    step.initialized = initialized;
-                    if initialized {
-                        keep_searching = false;
-                    };
-                }
-                Err(e) => return Err(Box::new(e)),
-            };
-        }
+        // while keep_searching {
+        //     match tick_bitmap::next_initialized_tick_within_one_word(
+        //         tick_bitmap,
+        //         state.tick,
+        //         tick_spacing,
+        //         zero_for_one,
+        //     ) {
+        //         Ok((tick_next, initialized)) => {
+        //             step.tick_next = tick_next.clamp(tick_math::MIN_TICK, tick_math::MAX_TICK);
+        //             step.sqrt_price_next_x96 = tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
+        //             step.initialized = initialized;
+        //             if initialized {
+        //                 keep_searching = false;
+        //             };
+        //         }
+        //         Err(e) => return Err(Box::new(e)),
+        //     };
+        // }
+
+        step.tick_next = next_tick_data.tick;
 
         // prevent overshooting
         if step.tick_next < tick_math::MIN_TICK {
@@ -115,7 +195,10 @@ pub fn swap(
             step.tick_next = tick_math::MAX_TICK;
         };
 
-        match swap_step::compute_swap_step(
+        step.sqrt_price_next_x96 =
+            uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
+
+        match uniswap_v3_math::swap_math::compute_swap_step(
             state.sqrt_price_x96,
             if (zero_for_one && step.sqrt_price_next_x96 < sqrt_price_limit_x96)
                 || (!zero_for_one && step.sqrt_price_next_x96 > sqrt_price_limit_x96)
@@ -135,20 +218,28 @@ pub fn swap(
                 step.fee_amount = fee_amount;
             }
 
-            Err(e) => return Err(Box::new(e)),
+            Err(_) => return Err(Box::new(UniswapV3MathError::StepComputationError)),
         }
 
         if exact_input {
-            state.amount_specified_remaining -= I256::from_dec_str(&step.amount_in.to_string())
-                .unwrap()
-                + I256::from_dec_str(&step.fee_amount.to_string()).unwrap();
-            state.amount_calculated -= I256::from_dec_str(&step.amount_out.to_string()).unwrap();
+            state.amount_specified_remaining = state
+                .amount_specified_remaining
+                .overflowing_sub(I256::from_raw(
+                    step.amount_in.overflowing_add(step.fee_amount).0,
+                ))
+                .0;
+            state.amount_calculated -= I256::from_raw(step.amount_out);
         } else {
-            state.amount_specified_remaining +=
-                I256::from_dec_str(&step.amount_out.to_string()).unwrap();
-            state.amount_calculated = state.amount_calculated
-                + I256::from_dec_str(&step.amount_in.to_string()).unwrap()
-                + I256::from_dec_str(&step.fee_amount.to_string()).unwrap();
+            state.amount_specified_remaining = state
+                .amount_specified_remaining
+                .overflowing_add(I256::from_raw(step.amount_out))
+                .0;
+            state.amount_calculated = state
+                .amount_calculated
+                .overflowing_add(I256::from_raw(
+                    step.amount_in.overflowing_add(step.fee_amount).0,
+                ))
+                .0;
         }
 
         step.sqrt_price_next_x96 = tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
@@ -156,10 +247,8 @@ pub fn swap(
         // shift tick if we reached the next price
         if state.sqrt_price_x96 == step.sqrt_price_next_x96 {
             // if the tick is initialized, run the tick transition
-            if step.initialized {
-                let (next_word, _) = tick_bitmap::position(step.tick_next);
-                let tick_ = tick_data.get(&next_word).ok_or("Failed to get tick data")?;
-                let mut liquidity_net = tick_.liquidity_net;
+            if next_tick_data.initialized {
+                liquidity_net = next_tick_data.liquidity_net;
 
                 if zero_for_one {
                     liquidity_net = -liquidity_net;
@@ -180,13 +269,13 @@ pub fn swap(
     }
     let (amount0, amount1) = if zero_for_one == exact_input {
         (
-            amount_specified - state.amount_specified_remaining,
+            I256::from_raw(u256_from_f64_saturating(amount_in)) - state.amount_specified_remaining,
             state.amount_calculated,
         )
     } else {
         (
             state.amount_calculated,
-            amount_specified - state.amount_specified_remaining,
+            I256::from_raw(u256_from_f64_saturating(amount_in)) - state.amount_specified_remaining,
         )
     };
     Ok((
@@ -299,6 +388,11 @@ mod test {
 
         let tick_spacing = _weth_dai_lp.tick_spacing().call().await?;
         println!("WETH/DAI V3 Pool sqrtPriceX96: {:?}", sqrt_price_x_96);
+        // let f64_sqrt = sqrt_price_x_96.as_u128() as f64;
+        // println!("WETH/DAI V3 Pool sqrtPriceX96 f64: {:?}", f64_sqrt);
+        // let u128_sqrt = f64_sqrt as u128;
+        // println!("WETH/DAI V3 Pool sqrtPriceX96 128: {:?}", u128_sqrt);
+        // println!("WETH/DAI V3 Pool sqrtPriceX96 U256: {:?}", U256::from(u128_sqrt));
         println!("WETH/DAI V3 Pool Current Tick: {:?}", tick);
         println!("WETH/DAI V3 Pool Fee: {:?}", fee);
         println!("WETH/DAI V3 Tick Spacing: {:?}", tick_spacing);
@@ -362,4 +456,3 @@ mod test {
         Ok(())
     }
 }
-//paulclaudius
