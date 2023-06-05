@@ -1,14 +1,14 @@
 use super::error::UniswapV3MathError;
-use super::{liquidity_math, swap_step, tick_bitmap, tick_math};
 use crate::batch_requests;
 use crate::batch_requests::uniswap_v3::UniswapV3TickData;
 use crate::cfmm::pool::{Pool, PoolType, PoolVariant};
 use cfmms::errors::CFMMError;
 use cfmms::pool::uniswap_v3::UniswapV3Pool;
 use ethers::providers::{Provider, Ws};
-use ethers::types::{u256_from_f64_saturating, H160, I256, U256};
+use ethers::types::{H160, I256, U256};
 use std::error::Error;
 use std::sync::Arc;
+use uniswap_v3_math::{liquidity_math, tick_math};
 
 pub const MIN_SQRT_RATIO: U256 = U256([4295128739, 0, 0, 0]);
 pub const MAX_SQRT_RATIO: U256 = U256([6743328256752651558, 17280870778742802505, 4294805859, 0]);
@@ -102,45 +102,135 @@ pub async fn get_pool_data(
     ))
 }
 
-pub async fn get_tokens_in_from_tokens_out(
-    provider: Arc<Provider<Ws>>,
-    token_out_amt: f64,
-    token_out: &H160,
-    zero_for_one: &bool,
-    fee: &u32,
-    sqrt_price: &U256,
+pub fn get_tokens_in_from_tokens_out(
+    token0_out: Option<f64>,
+    token1_out: Option<f64>,
     tick: &i32,
+    sqrt_price: &U256,
     liquidity: &u128,
+    liquidity_net: i128,
     tick_data: &Vec<UniswapV3TickData>,
+    fee: &u32,
 ) -> Result<f64, CFMMError<Provider<Ws>>> {
-    Ok(f64::from(0))
-    // call swap
+    match token0_out {
+        Some(val) => {
+            if token1_out.is_some() {
+                return Err("Cannot take two tokens").unwrap();
+            };
+            if let Ok((amt_0, _, _, _, _)) = swap(
+                -val,
+                tick,
+                sqrt_price,
+                liquidity,
+                tick_data,
+                liquidity_net,
+                &false,
+                fee,
+            ) {
+                return Ok(amt_0);
+            } else {
+                return Err("Swap simulation failed").unwrap();
+            }
+        }
+        None => match token1_out {
+            Some(val) => {
+                if let Ok((_, amt_1, _, _, _)) = swap(
+                    -val,
+                    tick,
+                    sqrt_price,
+                    liquidity,
+                    tick_data,
+                    liquidity_net,
+                    &true,
+                    fee,
+                ) {
+                    return Ok(amt_1);
+                } else {
+                    return Err("Swap simulation failed").unwrap();
+                }
+            }
+            None => Err("At least one token needs to be provided").unwrap(),
+        },
+    }
 }
-pub fn get_tokens_out_from_tokens_in(token_in: H160, token_in_amt: f64) {}
+
+pub fn get_tokens_out_from_tokens_in(
+    token0_in: Option<f64>,
+    token1_in: Option<f64>,
+    tick: &i32,
+    sqrt_price: &U256,
+    liquidity: &u128,
+    liquidity_net: i128,
+    tick_data: &Vec<UniswapV3TickData>,
+    fee: &u32,
+) -> Result<f64, CFMMError<Provider<Ws>>> {
+    match token0_in {
+        Some(val) => {
+            if token1_in.is_some() {
+                return Err("Cannot take two tokens").unwrap();
+            };
+            if let Ok((amt_0, _, _, _, _)) = swap(
+                val,
+                tick,
+                sqrt_price,
+                liquidity,
+                tick_data,
+                liquidity_net,
+                &false,
+                fee,
+            ) {
+                return Ok(amt_0);
+            } else {
+                return Err("Swap simulation failed").unwrap();
+            }
+        }
+        None => match token1_in {
+            Some(val) => {
+                if let Ok((_, amt_1, _, _, _)) = swap(
+                    val,
+                    tick,
+                    sqrt_price,
+                    liquidity,
+                    tick_data,
+                    liquidity_net,
+                    &true,
+                    fee,
+                ) {
+                    return Ok(amt_1);
+                } else {
+                    return Err("Swap simulation failed").unwrap();
+                }
+            }
+            None => Err("At least one token needs to be provided").unwrap(),
+        },
+    }
+}
 
 // function assumes getting exact amount out
 pub fn swap(
     amount_in: f64,
-    tick: i32,
-    sqrt_price_x96: U256,
-    liquidity: u128,
-    tick_data: Vec<UniswapV3TickData>,
+    tick: &i32,
+    sqrt_price_x96: &U256,
+    liquidity: &u128,
+    tick_data: &Vec<UniswapV3TickData>,
     liquidity_net: i128,
-    zero_for_one: bool,
-    fee: u32,
-) -> Result<(I256, I256, U256, u128, i32), Box<dyn Error>> {
+    zero_for_one: &bool,
+    fee: &u32,
+) -> Result<(f64, f64, U256, u128, i32), Box<dyn Error>> {
     let mut tick_data_iter = tick_data.iter();
-    let mut liquidity_net = liquidity_net;
+    let mut liquidity_net = liquidity_net.clone();
 
     let mut state = CurrentState {
-        amount_specified_remaining: I256::from_raw(u256_from_f64_saturating(amount_in)),
+        // type case f64 to i128 for I256 convertion
+        // might lead to loss of precision
+        amount_specified_remaining: I256::from(amount_in as i128),
         amount_calculated: I256::from(0),
-        sqrt_price_x96: sqrt_price_x96,
-        tick: tick,
-        liquidity: liquidity,
+        sqrt_price_x96: *sqrt_price_x96,
+        tick: *tick,
+        liquidity: *liquidity,
     };
 
-    let sqrt_price_limit_x96 = if zero_for_one {
+    let sqrt_price_limit_x96 = if *zero_for_one {
         MIN_SQRT_RATIO + 1
     } else {
         MAX_SQRT_RATIO - 1
@@ -200,7 +290,7 @@ pub fn swap(
 
         match uniswap_v3_math::swap_math::compute_swap_step(
             state.sqrt_price_x96,
-            if (zero_for_one && step.sqrt_price_next_x96 < sqrt_price_limit_x96)
+            if (*zero_for_one && step.sqrt_price_next_x96 < sqrt_price_limit_x96)
                 || (!zero_for_one && step.sqrt_price_next_x96 > sqrt_price_limit_x96)
             {
                 sqrt_price_limit_x96
@@ -209,7 +299,7 @@ pub fn swap(
             },
             state.liquidity,
             I256::from(state.liquidity),
-            fee,
+            *fee,
         ) {
             Ok((sqrt_price_x96, amount_in, amount_out, fee_amount)) => {
                 state.sqrt_price_x96 = sqrt_price_x96;
@@ -250,7 +340,7 @@ pub fn swap(
             if next_tick_data.initialized {
                 liquidity_net = next_tick_data.liquidity_net;
 
-                if zero_for_one {
+                if *zero_for_one {
                     liquidity_net = -liquidity_net;
                 }
 
@@ -258,7 +348,7 @@ pub fn swap(
                     liquidity_math::add_delta(state.liquidity, liquidity_net as i128)?;
             };
 
-            state.tick = if zero_for_one {
+            state.tick = if *zero_for_one {
                 step.tick_next.wrapping_sub(1)
             } else {
                 step.tick_next
@@ -267,20 +357,21 @@ pub fn swap(
             state.tick = tick_math::get_tick_at_sqrt_ratio(state.sqrt_price_x96)?;
         };
     }
-    let (amount0, amount1) = if zero_for_one == exact_input {
+    let (amount0, amount1) = if *zero_for_one == exact_input {
         (
-            I256::from_raw(u256_from_f64_saturating(amount_in)) - state.amount_specified_remaining,
+            I256::from(amount_in as i128) - state.amount_specified_remaining,
             state.amount_calculated,
         )
     } else {
         (
             state.amount_calculated,
-            I256::from_raw(u256_from_f64_saturating(amount_in)) - state.amount_specified_remaining,
+            I256::from(amount_in as i128) - state.amount_specified_remaining,
         )
     };
+
     Ok((
-        amount0,
-        amount1,
+        amount0.as_u128() as f64,
+        amount1.as_u128() as f64,
         state.sqrt_price_x96,
         state.liquidity,
         state.tick,
