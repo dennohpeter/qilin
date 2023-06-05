@@ -6,7 +6,6 @@ use crate::cfmm::pool::{Pool, PoolType};
 use argmin::core::observers::{ObserverMode, SlogLogger};
 use argmin::core::{CostFunction, Error, Executor};
 use argmin::solver::brent::BrentOpt;
-use argmin::solver::brent::BrentRoot;
 use ethers::providers::{Middleware, Provider, Ws};
 use ethers::types::{H160, U256};
 use std::sync::Arc;
@@ -19,13 +18,15 @@ struct ArbPool {
     borrowing_pool_type: PoolType,
     repay_pool_type: PoolType,
     borrow_0_buy_1: bool,
-    borrowing_pool_fee: Option<u32>,        // V3 only
-    borrowing_pool_liquidity: Option<u128>, // V3 only
-    borrowing_pool_tick: Option<i32>,       // V3 only
+    borrowing_pool_fee: Option<u32>,         // V3 only
+    borrowing_pool_liquidity: Option<u128>,  // V3 only
+    borrowing_pool_sqrt_price: Option<U256>, // V3 only
+    borrowing_pool_tick: Option<i32>,        // V3 only
     borrowing_pool_tick_data: Option<Vec<UniswapV3TickData>>,
     borrowing_pool_liquidity_net: Option<i128>, // V3 only
     repay_pool_fee: Option<u32>,                // V3 only
     repay_pool_liquidity: Option<u128>,         // V3 only
+    repay_pool_sqrt_price: Option<U256>,        // V3 only
     repay_pool_tick: Option<i32>,               // V3 only
     repay_pool_tick_data: Option<Vec<UniswapV3TickData>>, // V3 only
     repay_pool_liquidity_net: Option<i128>,     // V3 only
@@ -40,16 +41,18 @@ impl ArbPool {
         borrowing_pool_type: PoolType,
         repay_pool_type: PoolType,
         borrow_0_buy_1: bool,
-        borrowing_pool_fee: Option<u32>,        // V3 only
-        borrowing_pool_liquidity: Option<u128>, // V3 only
-        borrowing_pool_tick: Option<i32>,       // V3 only
+        borrowing_pool_fee: Option<u32>,         // V3 only
+        borrowing_pool_liquidity: Option<u128>,  // V3 only
+        borrowing_pool_sqrt_price: Option<U256>, // V3 only
+        borrowing_pool_tick: Option<i32>,        // V3 only
         borrowing_pool_tick_data: Option<Vec<UniswapV3TickData>>, // V3 only
         borrowing_pool_liquidity_net: Option<i128>, // V3 only
-        repay_pool_fee: Option<u32>,            // V3 only
-        repay_pool_liquidity: Option<u128>,     // V3 only
-        repay_pool_tick: Option<i32>,           // V3 only
+        repay_pool_fee: Option<u32>,             // V3 only
+        repay_pool_liquidity: Option<u128>,      // V3 only
+        repay_pool_sqrt_price: Option<U256>,     // V3 only
+        repay_pool_tick: Option<i32>,            // V3 only
         repay_pool_tick_data: Option<Vec<UniswapV3TickData>>, // V3 only
-        repay_pool_liquidity_net: Option<i128>, // V3 only
+        repay_pool_liquidity_net: Option<i128>,  // V3 only
     ) -> Self {
         #[allow(clippy::too_many_arguments)]
         Self {
@@ -62,11 +65,13 @@ impl ArbPool {
             borrow_0_buy_1,
             borrowing_pool_fee,
             borrowing_pool_liquidity,
+            borrowing_pool_sqrt_price,
             borrowing_pool_tick,
             borrowing_pool_tick_data,
             borrowing_pool_liquidity_net,
             repay_pool_fee,
             repay_pool_liquidity,
+            repay_pool_sqrt_price,
             repay_pool_tick,
             repay_pool_tick_data,
             repay_pool_liquidity_net,
@@ -76,8 +81,8 @@ impl ArbPool {
     /// Called by arb function to calculate the optimal trade size
     pub async fn calc_optimal_arb(
         provider: Arc<Provider<Ws>>,
-        borrowing_pool: Pool,
-        repay_pool: Pool,
+        borrowing_pool: &Pool,
+        repay_pool: &Pool,
         borrow_0_buy_1: bool,
     ) -> f64 {
         let mut cost: ArbPool;
@@ -106,9 +111,11 @@ impl ArbPool {
                     borrow_0_buy_1,
                     Some(borrowing_pool_fee),
                     Some(borrowing_pool_liquidity),
+                    Some(borrowing_pool_sqrt_price),
                     Some(borrowing_pool_tick),
                     Some(borrowing_pool_tick_data),
                     Some(borrowing_pool_liquidity_net),
+                    None,
                     None,
                     None,
                     None,
@@ -128,6 +135,8 @@ impl ArbPool {
                     borrowing_pool.pool_type,
                     repay_pool.pool_type,
                     borrow_0_buy_1,
+                    None,
+                    None,
                     None,
                     None,
                     None,
@@ -161,6 +170,7 @@ impl ArbPool {
                 cost.repay_pool_reserve_1 = repay_pool_reserve_1 as f64;
                 cost.repay_pool_fee = Some(repay_pool_fee);
                 cost.repay_pool_liquidity = Some(repay_pool_liquidity);
+                cost.repay_pool_sqrt_price = Some(repay_pool_sqrt_price);
                 cost.repay_pool_tick = Some(repay_pool_tick);
                 cost.repay_pool_tick_data = Some(repay_pool_tick_data);
                 cost.repay_pool_liquidity_net = Some(repay_pool_liquidity_net);
@@ -207,7 +217,8 @@ impl CostFunction for ArbPool {
     type Output = f64;
 
     fn cost(&self, p: &Self::Param) -> Result<Self::Output, Error> {
-        Ok(maximize_arb_profit(
+        // added minus to maximize profit
+        Ok(-maximize_arb_profit(
             &p,
             &self.borrowing_pool_reserve_0,
             &self.borrowing_pool_reserve_1,
@@ -218,11 +229,13 @@ impl CostFunction for ArbPool {
             &self.repay_pool_type,
             &self.borrowing_pool_fee,
             &self.borrowing_pool_liquidity,
+            &self.borrowing_pool_sqrt_price,
             &self.borrowing_pool_tick,
             &self.borrowing_pool_tick_data,
             &self.borrowing_pool_liquidity_net,
             &self.repay_pool_fee,
             &self.repay_pool_liquidity,
+            &self.repay_pool_sqrt_price,
             &self.repay_pool_tick,
             &self.repay_pool_tick_data,
             &self.repay_pool_liquidity_net,
@@ -239,16 +252,18 @@ fn maximize_arb_profit(
     borrow_0_buy_1: &bool,
     borrowing_pool_type: &PoolType,
     repay_pool_type: &PoolType,
-    borrowing_pool_fee: &Option<u32>,        // V3 only
-    borrowing_pool_liquidity: &Option<u128>, // V3 only
-    borrowing_pool_tick: &Option<i32>,       // V3 only
+    borrowing_pool_fee: &Option<u32>,         // V3 only
+    borrowing_pool_liquidity: &Option<u128>,  // V3 only
+    borrowing_pool_sqrt_price: &Option<U256>, // V3 only
+    borrowing_pool_tick: &Option<i32>,        // V3 only
     borrowing_pool_tick_data: &Option<Vec<UniswapV3TickData>>, // V3 only
     borrowing_pool_liquidity_net: &Option<i128>, // V3 only
-    repay_pool_fee: &Option<u32>,            // V3 only
-    repay_pool_liquidity: &Option<u128>,     // V3 only
-    repay_pool_tick: &Option<i32>,           // V3 only
+    repay_pool_fee: &Option<u32>,             // V3 only
+    repay_pool_liquidity: &Option<u128>,      // V3 only
+    repay_pool_sqrt_price: &Option<U256>,     // V3 only
+    repay_pool_tick: &Option<i32>,            // V3 only
     repay_pool_tick_data: &Option<Vec<UniswapV3TickData>>, // V3 only
-    repay_pool_liquidity_net: &Option<i128>, // V3 only
+    repay_pool_liquidity_net: &Option<i128>,  // V3 only
 ) -> f64 {
     let mut _debt: f64 = 0.0;
     let mut _repay: f64 = 0.0;
@@ -274,10 +289,35 @@ fn maximize_arb_profit(
                 .unwrap();
             }
         },
-        PoolType::UniswapV3(_) => {
-            todo!()
-        }
-    };
+        PoolType::UniswapV3(_) => match borrow_0_buy_1 {
+            true => {
+                _debt = v3::swap::get_tokens_out_from_tokens_in(
+                    Some(*borrow_amt),
+                    None,
+                    &borrowing_pool_tick.unwrap(),
+                    &borrowing_pool_sqrt_price.unwrap(),
+                    &borrowing_pool_liquidity.unwrap(),
+                    borrowing_pool_liquidity_net.unwrap(),
+                    borrowing_pool_tick_data.as_ref().unwrap(),
+                    &borrowing_pool_fee.unwrap(),
+                )
+                .unwrap()
+            }
+            false => {
+                _debt = v3::swap::get_tokens_out_from_tokens_in(
+                    None,
+                    Some(*borrow_amt),
+                    &borrowing_pool_tick.unwrap(),
+                    &borrowing_pool_sqrt_price.unwrap(),
+                    &borrowing_pool_liquidity.unwrap(),
+                    borrowing_pool_liquidity_net.unwrap(),
+                    borrowing_pool_tick_data.as_ref().unwrap(),
+                    &borrowing_pool_fee.unwrap(),
+                )
+                .unwrap()
+            }
+        },
+    }
 
     match repay_pool_type {
         PoolType::UniswapV2(_) => match borrow_0_buy_1 {
@@ -300,9 +340,34 @@ fn maximize_arb_profit(
                 .unwrap();
             }
         },
-        PoolType::UniswapV3(_) => {
-            todo!()
-        }
+        PoolType::UniswapV3(_) => match borrow_0_buy_1 {
+            true => {
+                _repay = v3::swap::get_tokens_in_from_tokens_out(
+                    None,
+                    Some(*borrow_amt),
+                    &repay_pool_tick.unwrap(),
+                    &repay_pool_sqrt_price.unwrap(),
+                    &repay_pool_liquidity.unwrap(),
+                    repay_pool_liquidity_net.unwrap(),
+                    repay_pool_tick_data.as_ref().unwrap(),
+                    &repay_pool_fee.unwrap(),
+                )
+                .unwrap()
+            }
+            false => {
+                _repay = v3::swap::get_tokens_in_from_tokens_out(
+                    Some(*borrow_amt),
+                    None,
+                    &repay_pool_tick.unwrap(),
+                    &repay_pool_sqrt_price.unwrap(),
+                    &repay_pool_liquidity.unwrap(),
+                    repay_pool_liquidity_net.unwrap(),
+                    repay_pool_tick_data.as_ref().unwrap(),
+                    &repay_pool_fee.unwrap(),
+                )
+                .unwrap()
+            }
+        },
     };
 
     return _repay - _debt;
@@ -321,4 +386,61 @@ pub fn q64_2_f64(x: u128) -> f64 {
     let integers = ((x >> 64) & 0xFFFF) as u32;
 
     ((integers << 16) + decimals) as f64 / 2_f64.powf(16.0)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::cfmm::pool::{Pool, PoolType, PoolVariant};
+    use crate::utils::constants::{
+        UNISWAP_V2_WETH_USDC_LP, UNISWAP_V3_WETH_USDC_LP_0_01, USDC_ADDRESS, WETH_ADDRESS,
+    };
+    use ethers::{
+        core::types::{Block, H160, U256},
+        providers::{Middleware, Provider, Ws},
+        signers::LocalWallet,
+    };
+
+    #[tokio::test]
+    async fn test_calc_optimal_arb() {
+        // create a LocalWallet instance from local node's available account's private key
+        let wallet: LocalWallet =
+            "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+                .parse::<LocalWallet>()
+                .unwrap();
+        let provider = Arc::new(
+            Provider::<Ws>::connect("http://localhost:8545")
+                .await
+                .unwrap(),
+        );
+
+        let v2_pool = Pool::new(
+            provider.clone(),
+            UNISWAP_V2_WETH_USDC_LP.parse::<H160>().unwrap(),
+            WETH_ADDRESS.parse::<H160>().unwrap(),
+            USDC_ADDRESS.parse::<H160>().unwrap(),
+            U256::from(300),
+            PoolVariant::UniswapV2,
+        )
+        .await
+        .unwrap();
+
+        let v3_pool = Pool::new(
+            provider.clone(),
+            UNISWAP_V3_WETH_USDC_LP_0_01.parse::<H160>().unwrap(),
+            WETH_ADDRESS.parse::<H160>().unwrap(),
+            USDC_ADDRESS.parse::<H160>().unwrap(),
+            U256::from(10),
+            PoolVariant::UniswapV3,
+        )
+        .await
+        .unwrap();
+
+        println!("v2_pool: {:?}", v2_pool);
+        println!("v3_pool: {:?}", v3_pool);
+
+        let amt = ArbPool::calc_optimal_arb(provider.clone(), &v2_pool, &v3_pool, true).await;
+
+        println!("amt: {:?}", amt);
+    }
 }

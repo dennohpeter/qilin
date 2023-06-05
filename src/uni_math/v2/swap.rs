@@ -1,6 +1,6 @@
 use crate::uni_math::u256_2_f64;
 use cfmms::pool::uniswap_v2::UniswapV2Pool;
-use ethers::providers::{Middleware, Provider, Ws};
+use ethers::providers::{Provider, Ws};
 use ethers::types::U256;
 use std::error::Error;
 use std::sync::Arc;
