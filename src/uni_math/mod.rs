@@ -397,6 +397,7 @@ mod test {
     use crate::utils::constants::{
         UNISWAP_V2_WETH_USDC_LP, UNISWAP_V3_WETH_USDC_LP_0_01, USDC_ADDRESS, WETH_ADDRESS,
     };
+    use dotenv::dotenv;
     use ethers::{
         core::types::{Block, H160, U256},
         providers::{Middleware, Provider, Ws},
@@ -405,13 +406,13 @@ mod test {
 
     #[tokio::test]
     async fn test_calc_optimal_arb() {
-        // let _blast_key = env::var("BLAST_API_KEY").unwrap();
+        dotenv()?;
+        let _blast_key = env::var("BLAST_API_KEY").unwrap();
+        let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
         let provider = Arc::new(
-            Provider::<Ws>::connect(
-                "wss://eth-mainnet.blastapi.io/3d9d259d-7653-4ca2-8ef5-b0148c84016c",
-            )
-            .await
-            .unwrap(),
+            Provider::<Ws>::connect(mainnet_blast_url.as_str())
+                .await
+                .unwrap(),
         );
 
         let v2_pool = Pool::new(
