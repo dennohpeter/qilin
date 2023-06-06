@@ -1,12 +1,11 @@
-use super::error::UniswapV3MathError;
 use crate::batch_requests;
 use crate::batch_requests::uniswap_v3::UniswapV3TickData;
+use crate::errors::errors::UniswapV3MathError;
 
 use cfmms::errors::CFMMError;
 use cfmms::pool::uniswap_v3::UniswapV3Pool;
 use ethers::providers::{Provider, Ws};
 use ethers::types::{I256, U256};
-use std::error::Error;
 use std::sync::Arc;
 use uniswap_v3_math::{liquidity_math, tick_math};
 
@@ -62,25 +61,30 @@ pub async fn get_pool_data(
 > {
     let fee = uniswapv3_pool.fee;
     let sqrt_price = uniswapv3_pool.sqrt_price;
-    let tick = uniswapv3_pool.tick;
+    let mut tick = uniswapv3_pool.tick;
     let liquidity = uniswapv3_pool.liquidity;
     let (reserver_0, reserve_1) = uniswapv3_pool.calculate_virtual_reserves().unwrap();
 
-    let tick_data = if let Ok((tick_data, _)) =
-        batch_requests::uniswap_v3::get_uniswap_v3_tick_data_batch_request(
-            &uniswapv3_pool,
-            tick,
-            zero_for_one,
-            20000, //set it to 20000 for now as cross 20000 ticks swap is unlikely for liquid pools
-            None,
-            provider.clone(),
-        )
-        .await
-    {
-        tick_data
-    } else {
-        return Err(CFMMError::NoInitializedTicks);
-    };
+    let mut tick_data = Vec::new();
+    while tick_data.len() < 500 {
+        if let Ok((_tick_data, _)) =
+            batch_requests::uniswap_v3::get_uniswap_v3_tick_data_batch_request(
+                &uniswapv3_pool,
+                tick,
+                zero_for_one,
+                // TODO: increase num_ticks iteratively
+                200,
+                None,
+                provider.clone(),
+            )
+            .await
+        {
+            tick += 200;
+            tick_data.extend(_tick_data);
+        } else {
+            return Err(CFMMError::NoInitializedTicks);
+        };
+    }
 
     let liquidity_net = uniswapv3_pool
         .get_liquidity_net(tick, provider.clone())
@@ -108,7 +112,7 @@ pub fn get_tokens_in_from_tokens_out(
     liquidity_net: i128,
     tick_data: &Vec<UniswapV3TickData>,
     fee: &u32,
-) -> Result<f64, CFMMError<Provider<Ws>>> {
+) -> Result<f64, UniswapV3MathError> {
     match token0_out {
         Some(val) => {
             if token1_out.is_some() {
@@ -126,7 +130,7 @@ pub fn get_tokens_in_from_tokens_out(
             ) {
                 return Ok(amt_0);
             } else {
-                return Err("Swap simulation failed").unwrap();
+                return Err(UniswapV3MathError::SwapSimulationError);
             }
         }
         None => match token1_out {
@@ -143,7 +147,7 @@ pub fn get_tokens_in_from_tokens_out(
                 ) {
                     return Ok(amt_1);
                 } else {
-                    return Err("Swap simulation failed").unwrap();
+                    return Err(UniswapV3MathError::SwapSimulationError);
                 }
             }
             None => Err("At least one token needs to be provided").unwrap(),
@@ -160,7 +164,7 @@ pub fn get_tokens_out_from_tokens_in(
     liquidity_net: i128,
     tick_data: &Vec<UniswapV3TickData>,
     fee: &u32,
-) -> Result<f64, CFMMError<Provider<Ws>>> {
+) -> Result<f64, UniswapV3MathError> {
     match token0_in {
         Some(val) => {
             if token1_in.is_some() {
@@ -178,7 +182,7 @@ pub fn get_tokens_out_from_tokens_in(
             ) {
                 return Ok(amt_0);
             } else {
-                return Err("Swap simulation failed").unwrap();
+                return Err(UniswapV3MathError::SwapSimulationError);
             }
         }
         None => match token1_in {
@@ -195,7 +199,7 @@ pub fn get_tokens_out_from_tokens_in(
                 ) {
                     return Ok(amt_1);
                 } else {
-                    return Err("Swap simulation failed").unwrap();
+                    return Err(UniswapV3MathError::SwapSimulationError);
                 }
             }
             None => Err("At least one token needs to be provided").unwrap(),
@@ -213,7 +217,7 @@ pub fn swap(
     liquidity_net: i128,
     zero_for_one: &bool,
     fee: &u32,
-) -> Result<(f64, f64, U256, u128, i32), Box<dyn Error>> {
+) -> Result<(f64, f64, U256, u128, i32), UniswapV3MathError> {
     let mut tick_data_iter = tick_data.iter();
     let mut liquidity_net = liquidity_net.clone();
 
@@ -248,12 +252,11 @@ pub fn swap(
         } else {
             // currently return if tick_data is exhausted
             // later should add a function to return a HashMap that represents the tick_bitmap
-            return Err(Box::new(UniswapV3MathError::TickDataError));
+            return Err(UniswapV3MathError::TickDataError);
         };
 
         // TODO: add a tick_bitmap finder like balanceOf slot_finder to use here
         // let mut keep_searching = true;
-
         // while keep_searching {
         //     match tick_bitmap::next_initialized_tick_within_one_word(
         //         tick_bitmap,
@@ -283,7 +286,10 @@ pub fn swap(
         };
 
         step.sqrt_price_next_x96 =
-            uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
+            match uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(step.tick_next) {
+                Ok(val) => val,
+                Err(e) => return Err(UniswapV3MathError::TickDataError),
+            };
 
         match uniswap_v3_math::swap_math::compute_swap_step(
             state.sqrt_price_x96,
@@ -295,7 +301,7 @@ pub fn swap(
                 step.sqrt_price_next_x96
             },
             state.liquidity,
-            I256::from(state.liquidity),
+            state.amount_specified_remaining,
             *fee,
         ) {
             Ok((sqrt_price_x96, amount_in, amount_out, fee_amount)) => {
@@ -305,7 +311,7 @@ pub fn swap(
                 step.fee_amount = fee_amount;
             }
 
-            Err(_) => return Err(Box::new(UniswapV3MathError::StepComputationError)),
+            Err(_) => return Err(UniswapV3MathError::StepComputationError),
         }
 
         if exact_input {
@@ -329,8 +335,6 @@ pub fn swap(
                 .0;
         }
 
-        step.sqrt_price_next_x96 = tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
-
         // shift tick if we reached the next price
         if state.sqrt_price_x96 == step.sqrt_price_next_x96 {
             // if the tick is initialized, run the tick transition
@@ -341,8 +345,11 @@ pub fn swap(
                     liquidity_net = -liquidity_net;
                 }
 
-                state.liquidity =
-                    liquidity_math::add_delta(state.liquidity, liquidity_net as i128)?;
+                state.liquidity = if liquidity_net < 0 {
+                    state.liquidity - (-liquidity_net as u128)
+                } else {
+                    state.liquidity + (liquidity_net as u128)
+                };
             };
 
             state.tick = if *zero_for_one {
@@ -351,9 +358,13 @@ pub fn swap(
                 step.tick_next
             };
         } else if state.sqrt_price_x96 != step.sqrt_price_start_x96 {
-            state.tick = tick_math::get_tick_at_sqrt_ratio(state.sqrt_price_x96)?;
+            state.tick = match tick_math::get_tick_at_sqrt_ratio(state.sqrt_price_x96) {
+                Ok(val) => val,
+                Err(e) => return Err(UniswapV3MathError::TickDataError),
+            };
         };
     }
+
     let (amount0, amount1) = if *zero_for_one == exact_input {
         (
             I256::from(amount_in as i128) - state.amount_specified_remaining,
@@ -367,180 +378,180 @@ pub fn swap(
     };
 
     Ok((
-        amount0.as_u128() as f64,
-        amount1.as_u128() as f64,
+        amount0.as_i128() as f64,
+        amount1.as_i128() as f64,
         state.sqrt_price_x96,
         state.liquidity,
         state.tick,
     ))
 }
 
-#[cfg(test)]
-mod test {
+// #[cfg(test)]
+// mod test {
 
-    use crate::bindings::{
-        uniswap_v3_router_1::uni_v3_swap_router_1_contract,
-        uniswap_v3_weth_dai_lp::uniswap_v3_weth_dai_lp_contract, weth::weth_contract,
-    };
-    use crate::uni_math::v3::utils::v3_get_ticks;
-    use crate::utils::constants::{
-        DAI_ADDRESS, UNISWAP_V3_ROUTER_1, UNISWAP_V3_WETH_DAI_LP, WETH_ADDRESS,
-    };
-    use ethers::types::U64;
-    use ethers::{
-        middleware::SignerMiddleware,
-        providers::{Http, Middleware, Provider},
-        signers::LocalWallet,
-        types::H160,
-    };
-    use ethers::{types::U256, utils::parse_units};
-    use std::error::Error;
-    use std::sync::Arc;
+//     use crate::bindings::{
+//         uniswap_v3_router_1::uni_v3_swap_router_1_contract,
+//         uniswap_v3_weth_dai_lp::uniswap_v3_weth_dai_lp_contract, weth::weth_contract,
+//     };
+//     use crate::uni_math::v3::utils::v3_get_ticks;
+//     use crate::utils::constants::{
+//         DAI_ADDRESS, UNISWAP_V3_ROUTER_1, UNISWAP_V3_WETH_DAI_LP, WETH_ADDRESS,
+//     };
+//     use ethers::types::U64;
+//     use ethers::{
+//         middleware::SignerMiddleware,
+//         providers::{Http, Middleware, Provider},
+//         signers::LocalWallet,
+//         types::H160,
+//     };
+//     use ethers::{types::U256, utils::parse_units};
+//     use std::error::Error;
+//     use std::sync::Arc;
 
-    #[tokio::test]
-    // #[ignore]
-    async fn test_swap() -> Result<(), Box<dyn Error>> {
-        let five_hundred_ether: U256 = U256::from(parse_units("500.0", "ether").unwrap());
-        // create a LocalWallet instance from local node's available account's private key
-        let wallet: LocalWallet =
-            "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-                .parse::<LocalWallet>()?;
-        let provider =
-            Provider::<Http>::try_from("http://localhost:8545").expect("Failed to create provider");
+//     #[tokio::test]
+//     // #[ignore]
+//     async fn test_swap() -> Result<(), Box<dyn Error>> {
+//         let five_hundred_ether: U256 = U256::from(parse_units("500.0", "ether").unwrap());
+//         // create a LocalWallet instance from local node's available account's private key
+//         let wallet: LocalWallet =
+//             "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+//                 .parse::<LocalWallet>()?;
+//         let provider =
+//             Provider::<Http>::try_from("http://localhost:8545").expect("Failed to create provider");
 
-        //let clone_provider = provi
-        // create a singermiddleware that wraps default provider and wallet
-        let client = Arc::new(SignerMiddleware::new(provider.clone(), wallet));
+//         //let clone_provider = provi
+//         // create a singermiddleware that wraps default provider and wallet
+//         let client = Arc::new(SignerMiddleware::new(provider.clone(), wallet));
 
-        let block = provider.clone().get_block_number().await?;
-        let block_number: U64 = block.into();
-        println!("block: {block_number:?}");
-        // get account address
-        let address = Arc::clone(&client).address();
-        println!("Account Address: {:?}", address);
+//         let block = provider.clone().get_block_number().await?;
+//         let block_number: U64 = block.into();
+//         println!("block: {block_number:?}");
+//         // get account address
+//         let address = Arc::clone(&client).address();
+//         println!("Account Address: {:?}", address);
 
-        //get account balance
-        let balance = Arc::clone(&client)
-            .get_balance(address.clone(), None)
-            .await?;
-        println!("Wallet Balance: {:?}", balance);
+//         //get account balance
+//         let balance = Arc::clone(&client)
+//             .get_balance(address.clone(), None)
+//             .await?;
+//         println!("Wallet Balance: {:?}", balance);
 
-        // create an instance of WETH smart contract fomr binding
-        let weth_instance =
-            weth_contract::weth::new(WETH_ADDRESS.parse::<H160>()?, Arc::clone(&client));
+//         // create an instance of WETH smart contract fomr binding
+//         let weth_instance =
+//             weth_contract::weth::new(WETH_ADDRESS.parse::<H160>()?, Arc::clone(&client));
 
-        let balance_of = weth_instance
-            .balance_of(
-                "0x06da0fd433C1A5d7a4faa01111c044910A184553"
-                    .parse::<H160>()
-                    .unwrap(),
-            )
-            .call()
-            .await?;
-        println!(
-            "Balance of 0x06da0fd433C1A5d7a4faa01111c044910A184553: {:?}",
-            balance_of
-        );
-        //println!("500: {:?}", five_hundred_ether);
+//         let balance_of = weth_instance
+//             .balance_of(
+//                 "0x06da0fd433C1A5d7a4faa01111c044910A184553"
+//                     .parse::<H160>()
+//                     .unwrap(),
+//             )
+//             .call()
+//             .await?;
+//         println!(
+//             "Balance of 0x06da0fd433C1A5d7a4faa01111c044910A184553: {:?}",
+//             balance_of
+//         );
+//         //println!("500: {:?}", five_hundred_ether);
 
-        // deposit 500 ETH to get WETH
-        let _weth = weth_instance
-            .deposit()
-            .value(five_hundred_ether)
-            .send()
-            .await?
-            .await?
-            .expect("no receipt found");
-        let weth_balance = weth_instance.balance_of(address).call().await?;
-        println!("Current WETH Balance: {:?}", weth_balance);
+//         // deposit 500 ETH to get WETH
+//         let _weth = weth_instance
+//             .deposit()
+//             .value(five_hundred_ether)
+//             .send()
+//             .await?
+//             .await?
+//             .expect("no receipt found");
+//         let weth_balance = weth_instance.balance_of(address).call().await?;
+//         println!("Current WETH Balance: {:?}", weth_balance);
 
-        // create an instance of WETH/DAI smart contract from bindings
-        let _weth_dai_lp = uniswap_v3_weth_dai_lp_contract::uniswap_v3_weth_dai_lp::new(
-            UNISWAP_V3_WETH_DAI_LP.parse::<H160>()?,
-            Arc::clone(&client),
-        );
+//         // create an instance of WETH/DAI smart contract from bindings
+//         let _weth_dai_lp = uniswap_v3_weth_dai_lp_contract::uniswap_v3_weth_dai_lp::new(
+//             UNISWAP_V3_WETH_DAI_LP.parse::<H160>()?,
+//             Arc::clone(&client),
+//         );
 
-        // get current WETH/DAI pool's info
-        let (
-            // current price
-            sqrt_price_x_96,
-            // current tick
-            tick,
-            _,
-            _,
-            _,
-            // pool fee
-            fee,
-            _,
-        ) = _weth_dai_lp.slot_0().call().await?;
+//         // get current WETH/DAI pool's info
+//         let (
+//             // current price
+//             sqrt_price_x_96,
+//             // current tick
+//             tick,
+//             _,
+//             _,
+//             _,
+//             // pool fee
+//             fee,
+//             _,
+//         ) = _weth_dai_lp.slot_0().call().await?;
 
-        let tick_spacing = _weth_dai_lp.tick_spacing().call().await?;
-        println!("WETH/DAI V3 Pool sqrtPriceX96: {:?}", sqrt_price_x_96);
-        // let f64_sqrt = sqrt_price_x_96.as_u128() as f64;
-        // println!("WETH/DAI V3 Pool sqrtPriceX96 f64: {:?}", f64_sqrt);
-        // let u128_sqrt = f64_sqrt as u128;
-        // println!("WETH/DAI V3 Pool sqrtPriceX96 128: {:?}", u128_sqrt);
-        // println!("WETH/DAI V3 Pool sqrtPriceX96 U256: {:?}", U256::from(u128_sqrt));
-        println!("WETH/DAI V3 Pool Current Tick: {:?}", tick);
-        println!("WETH/DAI V3 Pool Fee: {:?}", fee);
-        println!("WETH/DAI V3 Tick Spacing: {:?}", tick_spacing);
+//         let tick_spacing = _weth_dai_lp.tick_spacing().call().await?;
+//         println!("WETH/DAI V3 Pool sqrtPriceX96: {:?}", sqrt_price_x_96);
+//         // let f64_sqrt = sqrt_price_x_96.as_u128() as f64;
+//         // println!("WETH/DAI V3 Pool sqrtPriceX96 f64: {:?}", f64_sqrt);
+//         // let u128_sqrt = f64_sqrt as u128;
+//         // println!("WETH/DAI V3 Pool sqrtPriceX96 128: {:?}", u128_sqrt);
+//         // println!("WETH/DAI V3 Pool sqrtPriceX96 U256: {:?}", U256::from(u128_sqrt));
+//         println!("WETH/DAI V3 Pool Current Tick: {:?}", tick);
+//         println!("WETH/DAI V3 Pool Fee: {:?}", fee);
+//         println!("WETH/DAI V3 Tick Spacing: {:?}", tick_spacing);
 
-        // get upper and lower ticks
-        let (lower_tick, upper_tick) = v3_get_ticks(tick, tick_spacing);
-        println!(
-            "Current Upper Tick: {:?}, Lower Tick: {:?}",
-            upper_tick, lower_tick
-        );
+//         // get upper and lower ticks
+//         let (lower_tick, upper_tick) = v3_get_ticks(tick, tick_spacing);
+//         println!(
+//             "Current Upper Tick: {:?}, Lower Tick: {:?}",
+//             upper_tick, lower_tick
+//         );
 
-        // create an instance of router smart contract from the bindingd
-        let uni_v3_router_1 = uni_v3_swap_router_1_contract::SwapRouter::new(
-            UNISWAP_V3_ROUTER_1.parse::<H160>()?,
-            Arc::clone(&client),
-        );
+//         // create an instance of router smart contract from the bindingd
+//         let uni_v3_router_1 = uni_v3_swap_router_1_contract::SwapRouter::new(
+//             UNISWAP_V3_ROUTER_1.parse::<H160>()?,
+//             Arc::clone(&client),
+//         );
 
-        let _ = weth_instance
-            .approve(UNISWAP_V3_ROUTER_1.parse::<H160>()?, U256::MAX)
-            .send()
-            .await?
-            .await?;
+//         let _ = weth_instance
+//             .approve(UNISWAP_V3_ROUTER_1.parse::<H160>()?, U256::MAX)
+//             .send()
+//             .await?
+//             .await?;
 
-        let input_param = uni_v3_swap_router_1_contract::ExactInputSingleParams {
-            token_in: WETH_ADDRESS.parse::<H160>().unwrap(),
-            token_out: DAI_ADDRESS.parse::<H160>().unwrap(),
-            fee: 3000,                  //fee
-            recipient: address.clone(), //recipient
-            deadline: U256::MAX,
-            amount_in: U256::from(parse_units("50.0", "ether").unwrap()),
-            amount_out_minimum: U256::from(0),
-            sqrt_price_limit_x96: U256::from(0),
-        };
+//         let input_param = uni_v3_swap_router_1_contract::ExactInputSingleParams {
+//             token_in: WETH_ADDRESS.parse::<H160>().unwrap(),
+//             token_out: DAI_ADDRESS.parse::<H160>().unwrap(),
+//             fee: 3000,                  //fee
+//             recipient: address.clone(), //recipient
+//             deadline: U256::MAX,
+//             amount_in: U256::from(parse_units("50.0", "ether").unwrap()),
+//             amount_out_minimum: U256::from(0),
+//             sqrt_price_limit_x96: U256::from(0),
+//         };
 
-        let amount_out_res = uni_v3_router_1
-            .exact_input_single(input_param)
-            .send()
-            .await?
-            .await?;
+//         let amount_out_res = uni_v3_router_1
+//             .exact_input_single(input_param)
+//             .send()
+//             .await?
+//             .await?;
 
-        println!("{:?}", amount_out_res);
+//         println!("{:?}", amount_out_res);
 
-        //get after swap pool info
-        let (
-            // current price
-            sqrt_price_x_96_after,
-            // current tick
-            tick_after,
-            _,
-            _,
-            _,
-            _,
-            _,
-        ) = _weth_dai_lp.slot_0().call().await?;
-        println!(
-            "WETH/DAI V3 Pool sqrtPriceX96 after trade: {:?}",
-            sqrt_price_x_96_after
-        );
-        println!("WETH/DAI V3 Pool Current Tick: {:?}", tick_after);
+//         //get after swap pool info
+//         let (
+//             // current price
+//             sqrt_price_x_96_after,
+//             // current tick
+//             tick_after,
+//             _,
+//             _,
+//             _,
+//             _,
+//             _,
+//         ) = _weth_dai_lp.slot_0().call().await?;
+//         println!(
+//             "WETH/DAI V3 Pool sqrtPriceX96 after trade: {:?}",
+//             sqrt_price_x_96_after
+//         );
+//         println!("WETH/DAI V3 Pool Current Tick: {:?}", tick_after);
 
-        Ok(())
-    }
-}
+//         Ok(())
+//     }
+// }

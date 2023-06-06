@@ -193,6 +193,7 @@ pub async fn get_v3_pool_data_batch_request<M: Middleware>(
     Ok(())
 }
 
+#[derive(Debug)]
 pub struct UniswapV3TickData {
     pub initialized: bool,
     pub tick: i32,
@@ -223,7 +224,6 @@ pub async fn get_uniswap_v3_tick_data_batch_request<M: Middleware>(
     } else {
         deployer.call_raw().await?
     };
-
     let return_data_tokens = ethers::abi::decode(
         &[
             ParamType::Array(Box::new(ParamType::Tuple(vec![
@@ -250,6 +250,10 @@ pub async fn get_uniswap_v3_tick_data_batch_request<M: Middleware>(
                 .to_owned()
                 .into_bool()
                 .expect("Could not convert token to bool");
+
+            if initialized == false {
+                continue;
+            };
 
             let initialized_tick = I256::from_raw(
                 tick_data_tuple[1]

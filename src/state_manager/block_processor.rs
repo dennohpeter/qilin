@@ -3,7 +3,7 @@ use crate::batch_requests;
 use crate::cfmm::pool::Pool;
 use dashmap::DashMap;
 use ethers::{
-    core::types::{Block, U256},
+    core::types::Block,
     prelude::*,
     providers::{Middleware, Provider, Ws},
     types::{BlockId, U64},

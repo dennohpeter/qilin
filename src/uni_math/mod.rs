@@ -10,6 +10,7 @@ use ethers::providers::{Middleware, Provider, Ws};
 use ethers::types::{H160, U256};
 use std::sync::Arc;
 
+#[derive(Debug)]
 struct ArbPool {
     borrowing_pool_reserve_0: f64,
     borrowing_pool_reserve_1: f64,
@@ -188,22 +189,24 @@ impl ArbPool {
 
         match borrow_0_buy_1 {
             true => {
-                _solver = BrentOpt::new(
-                    0.01 * cost.borrowing_pool_reserve_0,
-                    0.05 * cost.borrowing_pool_reserve_0,
-                );
+                _solver = BrentOpt::new(1 as f64, cost.borrowing_pool_reserve_0);
             }
             false => {
                 _solver = BrentOpt::new(
-                    0.01 * cost.borrowing_pool_reserve_1,
-                    0.05 * cost.borrowing_pool_reserve_1,
+                    //     0.001 as f64 * cost.borrowing_pool_reserve_1,
+                    //     0.005 as f64 * cost.borrowing_pool_reserve_1,
+                    1 as f64,
+                    cost.borrowing_pool_reserve_1,
                 );
             }
         }
 
+        let init_param = 0.025 as f64 * cost.borrowing_pool_reserve_0;
+
         let executor = Executor::new(cost, _solver);
 
         let res = executor
+            .configure(|state| state.param(init_param))
             .add_observer(SlogLogger::term(), ObserverMode::Always)
             .run()
             .unwrap();
@@ -218,7 +221,7 @@ impl CostFunction for ArbPool {
 
     fn cost(&self, p: &Self::Param) -> Result<Self::Output, Error> {
         // added minus to maximize profit
-        Ok(-maximize_arb_profit(
+        Ok(maximize_arb_profit(
             &p,
             &self.borrowing_pool_reserve_0,
             &self.borrowing_pool_reserve_1,
@@ -370,7 +373,7 @@ fn maximize_arb_profit(
         },
     };
 
-    return _repay - _debt;
+    return -(_repay - _debt);
 }
 
 pub fn u256_2_f64(u256: U256) -> f64 {
@@ -387,7 +390,6 @@ pub fn q64_2_f64(x: u128) -> f64 {
 
     ((integers << 16) + decimals) as f64 / 2_f64.powf(16.0)
 }
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -403,15 +405,13 @@ mod test {
 
     #[tokio::test]
     async fn test_calc_optimal_arb() {
-        // create a LocalWallet instance from local node's available account's private key
-        let wallet: LocalWallet =
-            "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-                .parse::<LocalWallet>()
-                .unwrap();
+        // let _blast_key = env::var("BLAST_API_KEY").unwrap();
         let provider = Arc::new(
-            Provider::<Ws>::connect("http://localhost:8545")
-                .await
-                .unwrap(),
+            Provider::<Ws>::connect(
+                "wss://eth-mainnet.blastapi.io/3d9d259d-7653-4ca2-8ef5-b0148c84016c",
+            )
+            .await
+            .unwrap(),
         );
 
         let v2_pool = Pool::new(
@@ -436,11 +436,16 @@ mod test {
         .await
         .unwrap();
 
-        println!("v2_pool: {:?}", v2_pool);
-        println!("v3_pool: {:?}", v3_pool);
-
         let amt = ArbPool::calc_optimal_arb(provider.clone(), &v2_pool, &v3_pool, true).await;
 
-        println!("amt: {:?}", amt);
+        let mut token0_reserve: u128 = 0;
+        match v3_pool.pool_type {
+            PoolType::UniswapV3(v3_p) => {
+                (token0_reserve, _) = v3_p.calculate_virtual_reserves().unwrap();
+            }
+            _ => {}
+        }
+
+        assert!(amt < token0_reserve as f64 * 0.005);
     }
 }

@@ -325,7 +325,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             continue;
         };
         // arb
-        let arb_read_lock = all_pools.read().await;
+        let _arb_read_lock = all_pools.read().await;
         let _arb_pools = if let Some(arb_p) = state_manager::state_diff::extract_arb_pools(
             ws_provider.clone(),
             &state_diffs,
