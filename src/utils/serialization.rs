@@ -39,6 +39,8 @@ where
 
     let json_data = serde_json::to_string(&btree_map).unwrap();
 
+    println!("{:?}", json_data);
+
     if hash_addr {
         let mut file = File::create("src/assets/all_pools_hashed.json").unwrap();
         file.write_all(json_data.as_bytes()).unwrap();

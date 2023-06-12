@@ -1,4 +1,5 @@
 use crate::utils::constants::UNISWAP_V3_FACTORY;
+use anyhow::Result;
 use ethers::core::types::Chain;
 use ethers::etherscan::Client;
 use ethers::prelude::Abigen;
@@ -10,7 +11,7 @@ use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
 
-async fn generate_abigen(
+pub async fn generate_abigen(
     client: &Client,
     contract_name: &str,
     contract_address: H160,

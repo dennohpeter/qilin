@@ -10,6 +10,7 @@ dotenv = "0.15.0"
 # ethers-flashbots = "0.13.0"
 ethers-flashbots = { git = "https://github.com/da-bao-jian/ethers-flashbots", branch = "master"}
 rusty = { git = "https://github.com/da-bao-jian/rusty-sando", branch="master"}
+artemis = { git = "https://github.com/paradigmxyz/artemis.git", rev="dd9bec7", package = "artemis-core" }
 tokio = { version = "1.28.0", features = ["macros", "rt-multi-thread"] }
 eyre = "0.6.8"
 
@@ -49,11 +50,14 @@ cargo-watch = "8.4.0"
 hashbrown = "0.13.2"
 uniswap_v3_math = "0.4.0"
 argmin = "0.8.1"
+anyhow = "1.0.71"
+tokio-stream = "0.1.14"
+parking_lot = "0.12.1"
+env_logger = "0.10.0"
 
 [dev-dependencies]
 tokio = { version = "1.28.0", features = ["macros", "rt-multi-thread"] }
 ethers = { version = "2.0.0", default-features = false }
-eyre = "0.6.8"
 
 [features]
 default = ['openssl']

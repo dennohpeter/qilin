@@ -1,5 +1,6 @@
 use crate::cfmm::pool::Pool;
 use crate::utils::constants::WETH_ADDRESS;
+use anyhow::Result;
 use dashmap::DashMap;
 use ethers::types::H160;
 use hashbrown::HashMap;
@@ -7,6 +8,7 @@ use std::{
     collections::{hash_map::DefaultHasher, HashSet},
     hash::{Hash, Hasher},
 };
+use thiserror::Error;
 
 use super::slot_finder;
 use ethers::prelude::*;
@@ -54,6 +56,17 @@ impl TradablePool {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum StateDiffError<M>
+where
+    M: Middleware,
+{
+    #[error("Middleware error")]
+    MiddlewareError(<M as Middleware>::Error),
+    #[error("Could not get transaction trace")]
+    GetTransactionTraceError,
+}
+
 // Extract state diffs from a given tx
 //
 // Arguments:
@@ -64,11 +77,14 @@ impl TradablePool {
 // Returns:
 // Some(BTreeMap<Address, AccountDiff>): State diffs for each address)
 // None: If encountered error or state diffs are non existant
-pub async fn get_from_txs(
-    client: &Arc<Provider<Ws>>,
+pub async fn get_from_txs<M>(
+    client: &Arc<M>,
     meats: &Vec<Transaction>,
     block_num: BlockNumber,
-) -> Option<BTreeMap<Address, AccountDiff>> {
+) -> Option<BTreeMap<Address, AccountDiff>>
+where
+    M: Middleware + 'static,
+{
     // add statediff trace to each transaction
     let req = meats
         .iter()

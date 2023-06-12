@@ -1,7 +1,9 @@
 use crate::abigen;
+use anyhow::Result;
 use ethers::core::types::Bytes;
 use ethers::providers::Provider;
 use ethers::providers::Ws;
+use log;
 use std::error::Error;
 use std::sync::Arc;
 use url::Url;
@@ -34,7 +36,7 @@ pub async fn connect_to_network(
     Ok((ws_provider, middleware_url, chain_id))
 }
 
-pub async fn generate_abigen(arg: Vec<String>) -> Result<(), Box<dyn Error>> {
+pub async fn generate_abigen(arg: Vec<String>) -> Result<()> {
     let first_arg = if arg.len() > 1 {
         arg[1].clone()
     } else {
@@ -44,7 +46,9 @@ pub async fn generate_abigen(arg: Vec<String>) -> Result<(), Box<dyn Error>> {
     match first_arg.get(0..1) {
         Some(_) => {
             if first_arg.contains("abigen") {
-                abigen::generate_abigen_for_addresses().await?;
+                abigen::generate_abigen_for_addresses()
+                    .await
+                    .expect("Failed to generate abigen");
                 return Ok(());
             } else {
             }

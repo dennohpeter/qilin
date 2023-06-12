@@ -1,92 +1,175 @@
-// let _input = "0xfb3bdb41000000000000000000000000000000000000000000000000000000000007a1200000000000000000000000000000000000000000000000000000000000000080000000000000000000000000dac17f958d2ee523a2206206994597c13d831ec70000000000000000000000000000000000000000000000000000000005f5e0ff0000000000000000000000000000000000000000000000000000000000000006000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
-    // let input = Bytes::from(hex::decode(&_input[2..])?);
-    // fb3bdb41
-    // swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline)
-    // let _amount_out = U256::from_big_endian(&input[4..36]);
-    // let _to = hex::encode(&input[36..68]);
-    // let _deadline = U256::from_big_endian(&input[68..100]);
-    // let _path_size = U256::from_little_endian(&input[100..132]);
-    //let _path = hex::encode(&input[132..(132+32*(_path_size).as_usize())]);
 
-    // // 7ff36ab5
-    // // swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
-    // let amount_out_min = U256::from_big_endian(&input[4..36]);
-    // let _to = hex::encode(&input[36..68]);
-    // let _deadline = U256::from_big_endian(&input[68..100]);
-    // let _path_size = U256::from_big_endian(&input[100..132]);
-    // let _path = hex::encode(&input[132..(132+32*(_path_size).as_usize())]);
+pub struct CallData {
+    func_name: String,
+    amount_out: U256,
+    _to: String,
+    deadline: U256,
+    _path_size: U256,
+    path: Vec<String>,
+} 
 
-    // // 18cbafe5
-    // // swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
-    // let _amount_in = U256::from_big_endian(&input[4..36]);
-    // let _amount_out_min = U256::from_big_endian(&input[36..68]);
-    // let _to = hex::encode(&input[68..100]);
-    // let _deadline = U256::from_big_endian(&input[100..132]);
-    // let _path_size = U256::from_big_endian(&input[132..164]);
-    // let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+impl CallData {
+    pub fn new_swap_eth_for_exact_tokens(&self, input: Bytes) -> Self {
 
-    // // 38ed1739
-    // // function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
-    // let _amount_in = U256::from_big_endian(&input[4..36]);
-    // let _amount_out_min = U256::from_big_endian(&input[36..68]);
-    // let _to = hex::encode(&input[68..100]);
-    // let _deadline = U256::from_big_endian(&input[100..132]);
-    // let _path_size = U256::from_big_endian(&input[132..164]);
-    // let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+        let _amount_out = U256::from_big_endian(&input[4..36]);
+        let _to = hex::encode(&input[36..68]);
+        let _deadline = U256::from_big_endian(&input[68..100]);
+        let _path_size = U256::from_little_endian(&input[100..132]);
+        let _path = hex::encode(&input[132..(132+32*(_path_size).as_usize())]);
 
-    // // 4a25d94a
-    // // swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
-    // let _amount_out = U256::from_big_endian(&input[4..36]);
-    // let _amount_in_max = U256::from_big_endian(&input[36..68]);
-    // let _to = hex::encode(&input[68..100]);
-    // let _deadline = U256::from_big_endian(&input[100..132]);
-    // let _path_size = U256::from_big_endian(&input[132..164]);
-    // let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+        CallData {
+            func_name: "swapETHForExactTokens".to_string(),
+            amount_out: _amount_out,
+            _to: _to,
+            deadline: _deadline,
+            _path_size: _path_size,
+            path: _path,
+        }
+    }
 
-    // // 8803dbee
-    // // function swapTokensForExactTokens(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
-    // let _amount_out = U256::from_big_endian(&input[4..36]);
-    // let _amount_in_max = U256::from_big_endian(&input[36..68]);
-    // let _to = hex::encode(&input[68..100]);
-    // let _deadline = U256::from_big_endian(&input[100..132]);
-    // let _path_size = U256::from_big_endian(&input[132..164]);
-    // let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+    pub fn new_swap_exact_eth_for_tokens(&self, input: Bytes) -> Self {
+        // 7ff36ab5
+        // swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
+        let amount_out_min = U256::from_big_endian(&input[4..36]);
+        let _to = hex::encode(&input[36..68]);
+        let _deadline = U256::from_big_endian(&input[68..100]);
+        let _path_size = U256::from_big_endian(&input[100..132]);
+        let _path = hex::encode(&input[132..(132+32*(_path_size).as_usize())]);
 
-    // // V2 Only
-    // // b6f9de95
-    // // swapExactETHForTokensSupportingFeeOnTransferTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
-    // let amount_out_min = U256::from_big_endian(&input[4..36]);
-    // let _to = hex::encode(&input[36..68]);
-    // let _deadline = U256::from_big_endian(&input[68..100]);
-    // let _path_size = U256::from_big_endian(&input[100..132]);
-    // let _path = hex::encode(&input[132..(132+32*(_path_size).as_usize())]);
+        CallData {
+            func_name: "swapExactETHForTokens".to_string(),
+            amount_out: amount_out_min,
+            _to: _to,
+            deadline: _deadline,
+            _path_size: _path_size,
+            path: _path,
+        }
 
-    // // 791ac947
-    // // swapExactTokensForETHSupportingFeeOnTransferTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
-    // let _amount_in = U256::from_big_endian(&input[4..36]);
-    // let _amount_out_min = U256::from_big_endian(&input[36..68]);
-    // let _to = hex::encode(&input[68..100]);
-    // let _deadline = U256::from_big_endian(&input[100..132]);
-    // let _path_size = U256::from_big_endian(&input[132..164]);
-    // let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+    }
 
-    // println!("amountOut: {:?}", _amount_out);
-    // println!("to: {:?}", _to);
-    // println!("deadline: {:?}", _deadline);
-    // println!("Input: {:?}", hex::encode(&input[4..]));    
+    pub fn new_swap_exact_tokens_for_eth(&self, input: Bytes) -> Self {
 
-    // let routers = [
-    //     (UNISWAP_V3_ROUTER_1, "Uniswap V3 Router 1"),
-    //     (UNISWAP_V3_ROUTER_2, "Uniswap V3 Router 2"),
-    //     (UNISWAP_V2_ROUTER_1, "Uniswap V2 Router 1"),
-    //     (UNISWAP_V2_ROUTER_2, "Uniswap V2 Router 2"),
-    // ];
+        // 18cbafe5
+        // swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
+        let _amount_in = U256::from_big_endian(&input[4..36]);
+        let _amount_out_min = U256::from_big_endian(&input[36..68]);
+        let _to = hex::encode(&input[68..100]);
+        let _deadline = U256::from_big_endian(&input[100..132]);
+        let _path_size = U256::from_big_endian(&input[132..164]);
+        let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
 
-    // let mut router_selectors = HashMap::new();
-    // router_selectors.insert(UNISWAP_UNIVERSAL_ROUTER, &SELECTOR_UNI[..]);
-    // router_selectors.insert(UNISWAP_V3_ROUTER_1, &SELECTOR_V3_R1[..]);
-    // router_selectors.insert(UNISWAP_V3_ROUTER_2, &SELECTOR_V3_R2[..]);
-    // router_selectors.insert(UNISWAP_V2_ROUTER_1, &SELECTOR_V2_R1[..]);
-    // router_selectors.insert(UNISWAP_V2_ROUTER_2, &SELECTOR_V2_R2[..]);
+        CallData {
+            func_name: "swapExactTokensForETH".to_string(),
+            amount_out: _amount_out_min,
+            _to: _to,
+            deadline: _deadline,
+            _path_size: _path_size,
+            path: _path,
+        }
+    }
 
+    pub fn new_swap_exact_tokens_for_tokens(&self, input: Bytes) -> Self {
 
+        // 38ed1739
+        // function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
+        let _amount_in = U256::from_big_endian(&input[4..36]);
+        let _amount_out_min = U256::from_big_endian(&input[36..68]);
+        let _to = hex::encode(&input[68..100]);
+        let _deadline = U256::from_big_endian(&input[100..132]);
+        let _path_size = U256::from_big_endian(&input[132..164]);
+        let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+
+        CallData {
+            func_name: "swapExactTokensForTokens".to_string(),
+            amount_out: _amount_out_min,
+            _to: _to,
+            deadline: _deadline,
+            _path_size: _path_size,
+            path: _path,
+        }
+    }
+
+    pub fn new_swap_tokens_for_exact_eth(&self, input: Bytes) -> Self {
+
+        // 4a25d94a
+        // swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
+        let _amount_out = U256::from_big_endian(&input[4..36]);
+        let _amount_in_max = U256::from_big_endian(&input[36..68]);
+        let _to = hex::encode(&input[68..100]);
+        let _deadline = U256::from_big_endian(&input[100..132]);
+        let _path_size = U256::from_big_endian(&input[132..164]);
+        let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+
+        CallData {
+            func_name: "swapTokensForExactETH".to_string(),
+            amount_out: _amount_out,
+            _to: _to,
+            deadline: _deadline,
+            _path_size: _path_size,
+            path: _path,
+        }
+    }
+
+    pub fn swap_tokens_for_exacact_tokens(&self, input: Bytes) -> Self {
+
+        // 8803dbee
+        // function swapTokensForExactTokens(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
+        let _amount_out = U256::from_big_endian(&input[4..36]);
+        let _amount_in_max = U256::from_big_endian(&input[36..68]);
+        let _to = hex::encode(&input[68..100]);
+        let _deadline = U256::from_big_endian(&input[100..132]);
+        let _path_size = U256::from_big_endian(&input[132..164]);
+        let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+
+        CallData {
+            func_name: "swapTokensForExactTokens".to_string(),
+            amount_out: _amount_out,
+            _to: _to,
+            deadline: _deadline,
+            _path_size: _path_size,
+            path: _path,
+        }
+    }
+
+    pub fn swap_exact_eth_for_tokens_supporting_fee_on_transfer_tokens(&self, input: Bytes) -> Self {
+
+        // b6f9de95
+        // swapExactETHForTokensSupportingFeeOnTransferTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
+        let _amount_out_min = U256::from_big_endian(&input[4..36]);
+        let _to = hex::encode(&input[36..68]);
+        let _deadline = U256::from_big_endian(&input[68..100]);
+        let _path_size = U256::from_big_endian(&input[100..132]);
+        let _path = hex::encode(&input[132..(132+32*(_path_size).as_usize())]);
+
+        CallData {
+            func_name: "swapExactETHForTokensSupportingFeeOnTransferTokens".to_string(),
+            amount_out: _amount_out_min,
+            _to: _to,
+            deadline: _deadline,
+            _path_size: _path_size,
+            path: _path,
+        }
+    }
+
+    pub fn swap_exact_tokens_for_tokens_supporting_fee_on_transfer_tokens(&self, input: Bytes) -> Self {
+
+        // 791ac947
+        // swapExactTokensForTokensSupportingFeeOnTransferTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
+        let _amount_in = U256::from_big_endian(&input[4..36]);
+        let _amount_out_min = U256::from_big_endian(&input[36..68]);
+        let _to = hex::encode(&input[68..100]);
+        let _deadline = U256::from_big_endian(&input[100..132]);
+        let _path_size = U256::from_big_endian(&input[132..164]);
+        let _path = hex::encode(&input[164..(164+32*(_path_size).as_usize())]);
+
+        CallData {
+            func_name: "swapExactTokensForTokensSupportingFeeOnTransferTokens".to_string(),
+            amount_out: _amount_out_min,
+            _to: _to,
+            deadline: _deadline,
+            _path_size: _path_size,
+            path: _path,
+        }
+    }
+
+}

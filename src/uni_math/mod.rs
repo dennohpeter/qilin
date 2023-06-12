@@ -392,6 +392,8 @@ pub fn q64_2_f64(x: u128) -> f64 {
 }
 #[cfg(test)]
 mod test {
+    use std::env;
+
     use super::*;
     use crate::cfmm::pool::{Pool, PoolType, PoolVariant};
     use crate::utils::constants::{
@@ -406,7 +408,6 @@ mod test {
 
     #[tokio::test]
     async fn test_calc_optimal_arb() {
-        dotenv()?;
         let _blast_key = env::var("BLAST_API_KEY").unwrap();
         let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
         let provider = Arc::new(
