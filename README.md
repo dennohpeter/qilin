@@ -1,17 +1,1 @@
-# Commands
-1. to run
-- `cargo run`
-
-2. to test
-
-- `cargo make test`
-
-  - this command will spin up a local `Anvil` node, forking block 15686252 from Mainnet, for testing
-
-3. to generate bindings in `/src/bindings` and ABIs in `/abi`
-
-- `cargo make abigen`
-  * need to specify the contract to be generated in `src/abigen.rs`
-
-4. by default bot runs on Mainnet. To run on Goerli, 
-- `cargo run goerli`
+![cOnVExiTY_JuNKie_a_qilin_batling_a_group_of_robots_of_various_k_ca34371f-6413-42b1-852d-b26c5fa265da](https://github.com/qi-protocol/qilin/assets/63417973/13a423f8-5abb-4571-95e9-6124e5da2572)
