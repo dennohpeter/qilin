@@ -12,13 +12,12 @@ use ethers::{
     utils::keccak256,
 };
 use futures::{
-    channel::mpsc::{channel, Receiver, Sender},
+    channel::mpsc::Receiver,
     stream::Stream,
     task::{Context, Poll},
     Future, FutureExt,
 };
 use revm::{
-    db::DatabaseRef,
     primitives::{bytes, AccountInfo, Bytecode, B160, B256, KECCAK_EMPTY, U256 as rU256},
 };
 use std::{
