@@ -4,6 +4,7 @@ pub mod bindings;
 pub mod cfmm;
 pub mod collectors;
 pub mod errors;
+pub mod fork_database;
 pub mod init;
 pub mod uni_math;
 pub mod utils;
@@ -30,8 +31,6 @@ use crate::collectors::{
     mempool_collector::{NewTx, QilinMempoolCollector},
 };
 use artemis::{engine::Engine, types::Collector};
-
-pub type AllPool = Arc<RwLock<DashMap<Address, Pool>>>;
 
 #[tokio::main]
 async fn main() -> Result<()> {

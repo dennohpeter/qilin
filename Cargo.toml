@@ -54,6 +54,8 @@ anyhow = "1.0.71"
 tokio-stream = "0.1.14"
 parking_lot = "0.12.1"
 env_logger = "0.10.0"
+foundry = "0.3.0"
+tracing = "0.1.37"
 
 [dev-dependencies]
 tokio = { version = "1.28.0", features = ["macros", "rt-multi-thread"] }
