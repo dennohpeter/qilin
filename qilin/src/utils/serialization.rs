@@ -1,6 +1,7 @@
 use qilin_cfmms::pool::{Pool, PoolVariant};
 use dashmap::DashMap;
 use ethers::prelude::*;
+use ethers::types::U256;
 use ethers::providers::{Provider, Ws};
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -10,6 +11,7 @@ use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
 use std::sync::Arc;
+use serde_json;
 
 #[derive(Debug)]
 pub enum ReadError {
@@ -20,7 +22,7 @@ pub enum ReadError {
 impl std::fmt::Display for ReadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ReadError::FileNotFound => write!(f, "all_pools.json file not found in src/assets/"),
+            ReadError::FileNotFound => write!(f, "all_pools.json file not found in qilin/src/assets/"),
             ReadError::JsonParsingError(err) => write!(f, "Failed to parse JSON: {}", err),
         }
     }
@@ -42,10 +44,10 @@ where
     println!("{:?}", json_data);
 
     if hash_addr {
-        let mut file = File::create("src/assets/all_pools_hashed.json").unwrap();
+        let mut file = File::create("qilin/src/assets/all_pools_hashed.json").unwrap();
         file.write_all(json_data.as_bytes()).unwrap();
     } else {
-        let mut file = File::create("src/assets/all_pools.json").unwrap();
+        let mut file = File::create("qilin/src/assets/all_pools.json").unwrap();
         file.write_all(json_data.as_bytes()).unwrap();
     }
 
@@ -55,11 +57,11 @@ where
 pub async fn read_pool_data(
     provider: Arc<Provider<Ws>>,
 ) -> Result<(DashMap<Address, Pool>, DashMap<Address, Vec<Pool>>), ReadError> {
-    let pool_json_data = match fs::read_to_string("src/assets/all_pools.json") {
+    let pool_json_data = match fs::read_to_string("qilin/src/assets/all_pools.json") {
         Ok(data) => data,
         Err(_) => return Err(ReadError::FileNotFound),
     };
-    let hash_json_data = match fs::read_to_string("src/assets/all_pools_hashed.json") {
+    let hash_json_data = match fs::read_to_string("qilin/src/assets/all_pools_hashed.json") {
         Ok(data) => data,
         Err(_) => return Err(ReadError::FileNotFound),
     };
