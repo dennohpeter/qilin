@@ -7,9 +7,9 @@ use ethers::{
     providers::PubsubClient,
     types::{AccountDiff, Block, BlockNumber, Transaction, H160, H256, U256, U64},
 };
-use log::{error, info};
+use log::error;
 use parking_lot::RwLock;
-use std::collections::{btree_map::Entry, BTreeMap};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::runtime::Runtime;

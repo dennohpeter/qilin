@@ -1,5 +1,4 @@
-use crate::cfmm::pool::Pool;
-use crate::utils::constants::WETH_ADDRESS;
+use qilin_cfmms::pool::Pool;
 use anyhow::Result;
 use dashmap::DashMap;
 use ethers::types::H160;
@@ -218,7 +217,7 @@ pub fn extract_sandwich_pools(
 
     // find direction of swap based on state diff (does weth have state changes?)
     let weth_state_diff = &state_diffs
-        .get(&WETH_ADDRESS.parse::<H160>().unwrap())?
+        .get(&"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse::<H160>().unwrap())?
         .storage;
 
     let mut tradable_pools: Vec<TradablePool> = vec![];

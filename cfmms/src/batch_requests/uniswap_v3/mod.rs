@@ -7,10 +7,10 @@ use ethers::{
     types::{Bytes, I256, U256, U64},
 };
 
-use crate::cfmm::pool::{Pool, PoolType, PoolVariant};
+use crate::pool::{Pool, PoolType, PoolVariant};
 use cfmms::pool::UniswapV3Pool;
 
-use crate::errors::errors::CFMMError;
+use crate::errors::CFMMError;
 
 abigen!(
     GetUniswapV3PoolDataBatchRequest,

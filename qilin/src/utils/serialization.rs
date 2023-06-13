@@ -1,4 +1,4 @@
-use crate::cfmm::pool::{Pool, PoolVariant};
+use qilin_cfmms::pool::{Pool, PoolVariant};
 use dashmap::DashMap;
 use ethers::prelude::*;
 use ethers::providers::{Provider, Ws};

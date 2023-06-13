@@ -3,5 +3,5 @@
 /Cargo.lock
 /temp
 /examples
-/src/bin
+/bin
 /.vscode

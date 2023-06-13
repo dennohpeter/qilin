@@ -1,0 +1,27 @@
+[package]
+name = "collectors"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ethers = { workspace = true }
+artemis = { workspace = true }
+hashbrown = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+dashmap = { workspace = true }
+log = { workspace = true }
+parking_lot = { workspace = true }
+thiserror = { workspace = true }
+tokio-stream = { workspace = true }
+futures = { workspace = true }
+revm = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+cfmms = { workspace = true }
+rusty = { workspace = true }
+
+qilin_cfmms = { path = "../cfmms" }

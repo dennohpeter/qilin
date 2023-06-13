@@ -1,0 +1,18 @@
+[package]
+name = "qilin_cfmms"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+eyre = "0.6.8"
+indicatif = "0.17.5"
+tokio = { version = "1", features = ["time", "macros"] }
+rusty = { git = "https://github.com/da-bao-jian/rusty-sando", branch="master"}
+
+
+ethers = { workspace = true }
+thiserror = { workspace = true }
+cfmms = { workspace = true }
+serde = { workspace = true }

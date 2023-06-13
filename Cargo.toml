@@ -5,57 +5,57 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-dotenv = "0.15.0"
-# ethers-flashbots = "0.13.0"
-ethers-flashbots = { git = "https://github.com/da-bao-jian/ethers-flashbots", branch = "master"}
-rusty = { git = "https://github.com/da-bao-jian/rusty-sando", branch="master"}
+[workspace]
+members = [
+	"qilin",
+	"cfmms",
+	"collectors",
+	"strategies",
+	"executors",
+	"fork-database"
+]
+
+[workspace.dependencies]
+ethers = { version = "2.0.7", features=["ws"] }
 artemis = { git = "https://github.com/paradigmxyz/artemis.git", rev="dd9bec7", package = "artemis-core" }
 tokio = { version = "1.28.0", features = ["macros", "rt-multi-thread"] }
-eyre = "0.6.8"
-
-# Error handling
+hashbrown = "0.14.0"
 thiserror = { version = "1.0.37", default-features = false }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1"
+url = { version = "2.3.1", default-features = false }
 log = "0.4.17"
-chrono = { version = "0.4.22", features = ["default", "serde"] }
+serde = { version = "1.0", features = ["derive"] }
+dashmap = "5.4.0"
+ethers-flashbots = { git = "https://github.com/da-bao-jian/ethers-flashbots", branch = "master"}
+anyhow = "1.0.71"
+clap = "4.3.0"
+dotenv = "0.15.0"
+parking_lot = "0.12.1"
+eyre = "0.6.8"
+serde_json = "1"
+async-trait = { version = "0.1.58", default-features = false }
+tokio-stream = "0.1.14"
+futures = "0.3.28"
+revm = "3.3.0"
+cfmms = { git = "https://github.com/da-bao-jian/cfmms-rs", branch="main" }
+rusty = { git = "https://github.com/da-bao-jian/rusty-sando", branch="master"}
+tracing = "0.1.37"
+
+[dependencies]
 
 # HTTP
-url = { version = "2.3.1", default-features = false }
 reqwest = { version = "0.11", default-features = false }
 
 # Async
-async-trait = { version = "0.1.58", default-features = false }
 futures-util = "0.3"
 futures-core = "0.3"
 pin-project = "1"
 
 # Ethers
-ethers = { version = "2.0.4", features = ["ws"] }
-ruint = "1.8.0"
-hex = "0.4.3"
-uint = "0.9.5"
-revm = "3.3.0"
-dashmap = "5.4.0"
-futures = "0.3.28"
 cargo-make = "0.3.54"
-cfmms = { git = "https://github.com/da-bao-jian/cfmms-rs", branch="main" }
-indicatif = "0.17.3"
-clap = "4.3.0"
 cargo-geiger = "0.11.6"
 criterion = "0.5.1"
 petgraph = "0.6.3"
 cargo-watch = "8.4.0"
-hashbrown = "0.13.2"
-uniswap_v3_math = "0.4.0"
-argmin = "0.8.1"
-anyhow = "1.0.71"
-tokio-stream = "0.1.14"
-parking_lot = "0.12.1"
-env_logger = "0.10.0"
-foundry = "0.3.0"
-tracing = "0.1.37"
 
 [dev-dependencies]
 tokio = { version = "1.28.0", features = ["macros", "rt-multi-thread"] }

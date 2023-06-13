@@ -1,4 +1,4 @@
-use crate::cfmm::{
+use qilin_cfmms::{
     dex,
     dex::PairSyncError,
     pool::{Pool, PoolVariant},

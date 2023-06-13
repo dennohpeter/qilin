@@ -21,14 +21,14 @@ pub async fn generate_abigen(
     println!("ABI: {:?}", abi);
 
     // let abi_json = serde_json::from_str::<Value>(abi)?;
-    let mut file = File::create(format!("abi/{}.json", contract_name.to_lowercase()))?;
+    let mut file = File::create(format!("../abi/{}.json", contract_name.to_lowercase()))?;
     file.write_all(abi.as_bytes())?;
     println!("writing to file: {:?}", contract_name.to_lowercase());
 
-    let abi_source = format!("./abi/{}.json", contract_name.to_lowercase());
+    let abi_source = format!("../abi/{}.json", contract_name.to_lowercase());
     Abigen::new(contract_name.to_lowercase(), abi_source)?
         .generate()?
-        .write_to_file(format!("src/bindings/{}.rs", contract_name.to_lowercase()))?;
+        .write_to_file(format!("../cfmms/bindings/{}.rs", contract_name.to_lowercase()))?;
 
     Ok(())
 }

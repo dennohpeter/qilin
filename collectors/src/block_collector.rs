@@ -1,6 +1,6 @@
 use super::state_diff::{get_from_txs, StateDiffError};
-use crate::batch_requests;
-use crate::cfmm::pool::Pool;
+use qilin_cfmms::batch_requests;
+use qilin_cfmms::pool::Pool;
 use anyhow::Result;
 use artemis::types::{Collector, CollectorStream};
 use async_trait::async_trait;
