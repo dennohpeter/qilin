@@ -10,13 +10,15 @@ pub mod utils;
 mod tests {
     use super::*;
     use crate::blockchain_db::{BlockchainDb, BlockchainDbMeta, JsonBlockCacheDB};
+    use crate::forked_db::ForkedDatabase;
     use crate::shared_backend::SharedBackend;
-    use revm::db::DatabaseRef;
-    use revm::primitives::{B160, U256 as rU256};
+    use revm::db::{DatabaseRef, DatabaseCommit};
+    use revm::primitives::{Account, B160, U256 as rU256};
 
     use dotenv::dotenv;
-    use ethers::providers::{Provider, Ws};
-    use ethers::types::Chain;
+	use hashbrown::HashMap as Map;
+    use ethers::providers::{Provider, Middleware, Ws, Http};
+    use ethers::types::U64;
     use foundry_config::Config;
     use foundry_evm::executor::opts::EvmOpts;
     use parking_lot::RwLock;
@@ -117,4 +119,73 @@ mod tests {
         let json = JsonBlockCacheDB::load(cache_path).unwrap();
         assert!(!json.db().accounts.read().is_empty());
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_forkdb() {
+
+        dotenv().ok();
+        let _blast_key = env::var("BLAST_API_KEY").unwrap();
+        let mainnet_blast_url = format!("https://eth-mainnet.blastapi.io/{}", _blast_key);
+
+	// EvmOpts only allows http provider
+        let provider = Provider::<Http>::try_from(mainnet_blast_url.clone()).expect("could not connect to mainnet");
+	
+	let block_num = provider.get_block_number().await.unwrap();
+	let config = Config::figment();
+        let mut evm_opts = config.extract::<EvmOpts>().unwrap();
+        evm_opts.fork_block_number = Some(block_num.as_u64().clone());
+
+        let (env, _block) = evm_opts.fork_evm_env(mainnet_blast_url.clone()).await.unwrap();
+
+	assert_eq!(evm_opts.get_chain_id(), 1 as u64);
+
+	let meta =
+            BlockchainDbMeta { cfg_env: env.cfg, block_env: env.block, hosts: Default::default() };
+	
+        let db = BlockchainDb::new(meta, None);
+        let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+
+	let mut forked_db = ForkedDatabase::new(backend.clone(), db.clone());
+
+	let db_data = forked_db.inner().accounts().read().is_empty();
+	assert!(db_data);
+
+        let address: B160 = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
+            .parse()
+            .unwrap();
+
+	let snapshot = forked_db.create_snapshot();
+        let idx = rU256::from(0u64);
+        let account = forked_db.basic(address).unwrap().unwrap();
+        let mem_acc = db.accounts().read().get(&address).unwrap().clone();
+	let snap_shot_acc = snapshot.get_storage(address.clone(), idx.clone());
+
+	// test snapshot
+	assert!(!snap_shot_acc.is_some());
+	// test fork db and blockchain db sync
+        assert_eq!(account.balance, mem_acc.balance);
+        assert_eq!(account.nonce, mem_acc.nonce);
+
+	// create a random account for testing writing to cache
+	let mut account_delta: Map<B160, Account> = Map::new();
+	let rand_account = B160::random();
+	account_delta.insert(rand_account.clone(), Account::from(account.clone()));
+	DatabaseCommit::commit(&mut forked_db.clone(), account_delta);
+
+	let inner_account = forked_db.inner().accounts().read();
+	let account_detail = inner_account.get(&rand_account);
+	// test writing to cache
+	// the db should have the randomly created account data
+	assert!(!account_detail.is_some());
+	drop(inner_account);
+
+	forked_db.reset(Some(mainnet_blast_url.clone()), block_num - U64::from(1)).unwrap();
+        let cleared_account = forked_db.inner().accounts();
+	// test reset
+	assert_eq!(cleared_account.read().is_empty(), true);
+
+
+    }
+
+
 }

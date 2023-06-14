@@ -217,7 +217,7 @@ pub struct ForkDbSnapshot {
 // === impl DbSnapshot ===
 
 impl ForkDbSnapshot {
-    fn get_storage(&self, address: B160, index: rU256) -> Option<rU256> {
+    pub(crate) fn get_storage(&self, address: B160, index: rU256) -> Option<rU256> {
         self.local
             .accounts
             .get(&address)
