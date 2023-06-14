@@ -4,7 +4,6 @@ use ethers::types::{Address, BlockId, H256, U256};
 use futures::channel::mpsc::{SendError, TrySendError};
 use std::{
     convert::Infallible,
-    fmt,
     sync::{mpsc::RecvError, Arc},
 };
 

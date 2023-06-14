@@ -6,7 +6,7 @@ pub mod shared_backend;
 pub mod snapshot;
 pub mod utils;
 
-use crate::blockchain_db::{BlockchainDb, BlockchainDbMeta, JsonBlockCacheDB};
+use crate::blockchain_db::{BlockchainDb, BlockchainDbMeta};
 use crate::forked_db::ForkedDatabase;
 use crate::shared_backend::SharedBackend;
 use dotenv::dotenv;

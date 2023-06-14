@@ -4,26 +4,18 @@ use super::{
     backend_handler::{BackendHandler, BackendRequest},
     blockchain_db::{BlockchainDb, FlushJsonBlockCacheDB},
     errors::{DatabaseError, DatabaseResult},
-    utils::{b160_to_h160, b256_to_h256, h160_to_b160, h256_to_b256, ru256_to_u256, u256_to_ru256},
+    utils::{b160_to_h160, b256_to_h256, h256_to_b256},
 };
 use ethers::{
-    core::abi::ethereum_types::BigEndianHash,
     providers::Middleware,
-    types::{Address, Block, BlockId, Bytes, Transaction, H256, U256},
-    utils::keccak256,
+    types::{Address, Block, BlockId, Transaction, H256, U256},
 };
-use futures::{
-    channel::mpsc::{channel, Receiver, Sender},
-    stream::Stream,
-};
+use futures::channel::mpsc::{channel, Sender};
 use revm::{
     db::DatabaseRef,
     primitives::{AccountInfo, Bytecode, B160, B256, KECCAK_EMPTY, U256 as rU256},
 };
-use std::sync::{
-    mpsc::{channel as oneshot_channel, Sender as OneshotSender},
-    Arc,
-};
+use std::sync::{mpsc::channel as oneshot_channel, Arc};
 use tracing::{error, trace};
 
 #[derive(Debug, Clone)]
@@ -34,6 +26,7 @@ pub struct SharedBackend {
     ///
     /// There is only one instance of the type, so as soon as the last `SharedBackend` is deleted,
     /// `FlushJsonBlockCacheDB` is also deleted and the cache is flushed.
+    #[allow(unused_variables)]
     cache: Arc<FlushJsonBlockCacheDB>,
 }
 
@@ -158,6 +151,7 @@ impl SharedBackend {
     }
 
     /// Flushes the DB to disk if caching is enabled
+    #[allow(dead_code)]
     pub(crate) fn flush_cache(&self) {
         self.cache.0.flush();
     }

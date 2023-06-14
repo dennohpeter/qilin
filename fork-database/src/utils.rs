@@ -1,7 +1,4 @@
-use ethers::{
-    abi::Function,
-    types::{H256, U256},
-};
+use ethers::types::{H256, U256};
 
 /// Small helper function to convert [U256] into [H256].
 pub fn u256_to_h256_le(u: U256) -> H256 {

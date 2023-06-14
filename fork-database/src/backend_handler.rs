@@ -1,9 +1,9 @@
 // ported from foundry's executor with some modifications
 // https://github.com/foundry-rs/foundry/blob/master/evm/src/executor/fork/backend.rs
 use super::{
-    blockchain_db::{BlockchainDb, FlushJsonBlockCacheDB},
+    blockchain_db::BlockchainDb,
     errors::{DatabaseError, DatabaseResult},
-    utils::{b160_to_h160, b256_to_h256, h160_to_b160, h256_to_b256, ru256_to_u256, u256_to_ru256},
+    utils::{b256_to_h256, h160_to_b160, ru256_to_u256, u256_to_ru256},
 };
 use ethers::{
     core::abi::ethereum_types::BigEndianHash,
@@ -17,14 +17,11 @@ use futures::{
     task::{Context, Poll},
     Future, FutureExt,
 };
-use revm::primitives::{bytes, AccountInfo, Bytecode, B160, B256, KECCAK_EMPTY, U256 as rU256};
+use revm::primitives::{bytes, AccountInfo, Bytecode, KECCAK_EMPTY, U256 as rU256};
 use std::{
     collections::{hash_map::Entry, HashMap, VecDeque},
     pin::Pin,
-    sync::{
-        mpsc::{channel as oneshot_channel, Sender as OneshotSender},
-        Arc,
-    },
+    sync::{mpsc::Sender as OneshotSender, Arc},
 };
 use tracing::{error, trace, warn};
 
