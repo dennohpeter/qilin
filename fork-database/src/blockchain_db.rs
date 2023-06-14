@@ -327,7 +327,7 @@ pub struct JsonBlockCacheDB {
 
 impl JsonBlockCacheDB {
     /// Creates a new instance.
-    fn new(meta: Arc<RwLock<BlockchainDbMeta>>, cache_path: Option<PathBuf>) -> Self {
+    pub(crate) fn new(meta: Arc<RwLock<BlockchainDbMeta>>, cache_path: Option<PathBuf>) -> Self {
         Self {
             cache_path,
             data: JsonBlockCacheData {

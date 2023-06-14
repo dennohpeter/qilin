@@ -17,9 +17,7 @@ use futures::{
     task::{Context, Poll},
     Future, FutureExt,
 };
-use revm::{
-    primitives::{bytes, AccountInfo, Bytecode, B160, B256, KECCAK_EMPTY, U256 as rU256},
-};
+use revm::primitives::{bytes, AccountInfo, Bytecode, B160, B256, KECCAK_EMPTY, U256 as rU256};
 use std::{
     collections::{hash_map::Entry, HashMap, VecDeque},
     pin::Pin,

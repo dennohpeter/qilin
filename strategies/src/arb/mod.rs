@@ -1,13 +1,13 @@
 pub mod v2;
 pub mod v3;
 
-use qilin_cfmms::batch_requests::uniswap_v3::UniswapV3TickData;
-use qilin_cfmms::pool::{Pool, PoolType};
 use argmin::core::observers::{ObserverMode, SlogLogger};
 use argmin::core::{CostFunction, Error, Executor};
 use argmin::solver::brent::BrentOpt;
 use ethers::providers::{Middleware, Provider, Ws};
 use ethers::types::{H160, U256};
+use qilin_cfmms::batch_requests::uniswap_v3::UniswapV3TickData;
+use qilin_cfmms::pool::{Pool, PoolType};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -395,7 +395,6 @@ mod test {
     use std::env;
 
     use super::*;
-    use qilin_cfmms::pool::{Pool, PoolType, PoolVariant};
     use crate::utils::constants::{
         UNISWAP_V2_WETH_USDC_LP, UNISWAP_V3_WETH_USDC_LP_0_01, USDC_ADDRESS, WETH_ADDRESS,
     };
@@ -405,6 +404,7 @@ mod test {
         providers::{Middleware, Provider, Ws},
         signers::LocalWallet,
     };
+    use qilin_cfmms::pool::{Pool, PoolType, PoolVariant};
 
     #[tokio::test]
     async fn test_calc_optimal_arb() {

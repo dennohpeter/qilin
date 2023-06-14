@@ -3,11 +3,11 @@ use anyhow::Result;
 use ethers::core::types::Bytes;
 use ethers::providers::Provider;
 use ethers::providers::Ws;
+use hex;
 use log;
 use std::error::Error;
 use std::sync::Arc;
 use url::Url;
-use hex;
 
 pub fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())

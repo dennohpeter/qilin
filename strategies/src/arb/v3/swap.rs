@@ -1,6 +1,6 @@
+use super::errors::UniswapV3MathError;
 use qilin_cfmms::batch_requests;
 use qilin_cfmms::batch_requests::uniswap_v3::UniswapV3TickData;
-use super::errors::UniswapV3MathError;
 
 use cfmms::errors::CFMMError;
 use cfmms::pool::uniswap_v3::UniswapV3Pool;

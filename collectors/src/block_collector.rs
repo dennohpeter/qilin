@@ -1,6 +1,4 @@
 use super::state_diff::{get_from_txs, StateDiffError};
-use qilin_cfmms::batch_requests;
-use qilin_cfmms::pool::Pool;
 use anyhow::Result;
 use artemis::types::{Collector, CollectorStream};
 use async_trait::async_trait;
@@ -12,6 +10,8 @@ use ethers::{
 };
 use log::{error, info};
 use parking_lot::RwLock;
+use qilin_cfmms::batch_requests;
+use qilin_cfmms::pool::Pool;
 use rusty::prelude::fork_factory::ForkFactory;
 use std::sync::Arc;
 use thiserror::Error;

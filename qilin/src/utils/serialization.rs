@@ -1,9 +1,10 @@
-use qilin_cfmms::pool::{Pool, PoolVariant};
 use dashmap::DashMap;
 use ethers::prelude::*;
-use ethers::types::U256;
 use ethers::providers::{Provider, Ws};
+use ethers::types::U256;
+use qilin_cfmms::pool::{Pool, PoolVariant};
 use serde::Serialize;
+use serde_json;
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt::Debug;
@@ -11,7 +12,6 @@ use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
 use std::sync::Arc;
-use serde_json;
 
 #[derive(Debug)]
 pub enum ReadError {
@@ -22,7 +22,9 @@ pub enum ReadError {
 impl std::fmt::Display for ReadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ReadError::FileNotFound => write!(f, "all_pools.json file not found in qilin/src/assets/"),
+            ReadError::FileNotFound => {
+                write!(f, "all_pools.json file not found in qilin/src/assets/")
+            }
             ReadError::JsonParsingError(err) => write!(f, "Failed to parse JSON: {}", err),
         }
     }

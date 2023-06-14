@@ -52,4 +52,3 @@ pub enum UniswapV3MathError {
     #[error("Middleware error when getting next_initialized_tick_within_one_word")]
     MiddlewareError(String),
 }
-

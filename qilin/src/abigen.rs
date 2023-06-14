@@ -15,20 +15,24 @@ pub async fn generate_abigen(
     client: &Client,
     contract_name: &str,
     contract_address: H160,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let metadata = client.contract_source_code(contract_address).await?;
     let abi = metadata.items[0].abi.as_str();
     println!("ABI: {:?}", abi);
 
-    // let abi_json = serde_json::from_str::<Value>(abi)?;
     let mut file = File::create(format!("../abi/{}.json", contract_name.to_lowercase()))?;
     file.write_all(abi.as_bytes())?;
     println!("writing to file: {:?}", contract_name.to_lowercase());
 
     let abi_source = format!("../abi/{}.json", contract_name.to_lowercase());
-    Abigen::new(contract_name.to_lowercase(), abi_source)?
-        .generate()?
-        .write_to_file(format!("../cfmms/bindings/{}.rs", contract_name.to_lowercase()))?;
+    Abigen::new(contract_name.to_lowercase(), abi_source)
+        .unwrap()
+        .generate()
+        .unwrap()
+        .write_to_file(format!(
+            "../cfmms/bindings/{}.rs",
+            contract_name.to_lowercase()
+        ))?;
 
     Ok(())
 }
@@ -57,7 +61,7 @@ pub async fn generate_abigen_for_addresses() -> Result<(), Box<dyn Error>> {
     let mut parsed_addr;
     for (name, addr) in address_book {
         parsed_addr = addr.parse::<H160>()?;
-        generate_abigen(&etherscan_client, name, parsed_addr).await?;
+        generate_abigen(&etherscan_client, name, parsed_addr).await;
     }
 
     Ok(())

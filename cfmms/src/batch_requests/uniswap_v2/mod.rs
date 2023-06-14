@@ -6,8 +6,8 @@ use ethers::{
 };
 use std::sync::Arc;
 
-use crate::pool::{Pool, PoolType, PoolVariant};
 use crate::errors::CFMMError;
+use crate::pool::{Pool, PoolType, PoolVariant};
 use cfmms::pool::UniswapV2Pool;
 
 abigen!(

@@ -15,20 +15,14 @@ use ethers::{
 use futures::{
     channel::mpsc::{channel, Receiver, Sender},
     stream::Stream,
-    task::{Context, Poll},
-    Future, FutureExt,
 };
 use revm::{
     db::DatabaseRef,
     primitives::{AccountInfo, Bytecode, B160, B256, KECCAK_EMPTY, U256 as rU256},
 };
-use std::{
-    collections::{hash_map::Entry, HashMap, VecDeque},
-    pin::Pin,
-    sync::{
-        mpsc::{channel as oneshot_channel, Sender as OneshotSender},
-        Arc,
-    },
+use std::sync::{
+    mpsc::{channel as oneshot_channel, Sender as OneshotSender},
+    Arc,
 };
 use tracing::{error, trace};
 

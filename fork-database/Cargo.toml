@@ -17,10 +17,15 @@ thiserror = {workspace = true}
 url = {workspace = true}
 serde_json = {workspace = true}
 serde = {workspace = true}
+dotenv = {workspace = true}
 
 
 hashbrown = { version = "0.13", features = ["serde"] }
 foundry = "0.3.0"
+
+foundry_evm = { git = "https://github.com/foundry-rs/foundry.git", rev="2ffa619", package = "foundry-evm" }
+foundry_config = { git = "https://github.com/foundry-rs/foundry.git", rev="033bdc2", package = "foundry-config" }
+
 
 revm = { version = "3", default-features = false, features = [
   "std",

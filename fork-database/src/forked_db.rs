@@ -76,7 +76,6 @@ impl ForkedDatabase {
             .map_err(|err| err.to_string())?;
 
         // TODO need to find a way to update generic provider via url
-        // H: need to clean up the the BlockchainDB every new block
 
         // wipe the storage retrieved from remote
         self.inner().db().clear();

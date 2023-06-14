@@ -11,11 +11,11 @@ use std::{
 use thiserror::Error;
 use tokio::task::JoinError;
 
-use super::pool::{Pool, PoolVariant};
 use super::bindings::{
     uniswap_v2_factory::uniswap_v2_factory_contract,
     uniswap_v3_factory::uniswap_v3_factory_contract,
 };
+use super::pool::{Pool, PoolVariant};
 
 #[derive(Clone, Copy)]
 pub struct RequestThrottle {

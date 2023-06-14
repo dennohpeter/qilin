@@ -43,18 +43,9 @@ tracing = "0.1.37"
 [dependencies]
 
 qilin_core = { path = "qilin" }
-anyhow = "1.0.71"
-
-# HTTP
 reqwest = { version = "0.11", default-features = false }
-
-# Async
-futures-util = "0.3"
-futures-core = "0.3"
-pin-project = "1"
+anyhow = "1.0.71"
 tokio = { version = "1.28.0", features = ["macros", "rt-multi-thread"] }
-
-# Ethers
 cargo-make = "0.3.54"
 cargo-geiger = "0.11.6"
 criterion = "0.5.1"

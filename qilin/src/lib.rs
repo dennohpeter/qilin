@@ -2,10 +2,6 @@ pub mod abigen;
 pub mod init;
 pub mod utils;
 
-use qilin_cfmms::{
-    dex,
-    pool::{Pool, PoolVariant},
-};
 use anyhow::Result;
 use dashmap::DashMap;
 use env_logger::Env;
@@ -15,18 +11,21 @@ use ethers::{
     providers::{Middleware, Provider, Ws},
 };
 use parking_lot::RwLock;
+use qilin_cfmms::{
+    dex,
+    pool::{Pool, PoolVariant},
+};
 use std::env;
 
 use std::sync::{Arc, Mutex};
 
+use artemis::{engine::Engine, types::Collector};
 use collectors::{
     block_collector::{BlockPayload, QilinBlockCollector},
     mempool_collector::{NewTx, QilinMempoolCollector},
 };
-use artemis::{engine::Engine, types::Collector};
 
 pub async fn runner() -> Result<()> {
-
     env_logger::Builder::from_env(Env::default()).init();
 
     let (flashbot_client, all_pools, hash_addr_pools) = init::setup().await?;
