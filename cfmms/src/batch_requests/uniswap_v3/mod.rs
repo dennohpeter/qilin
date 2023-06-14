@@ -1,3 +1,5 @@
+// ported from cfmms-rs with slight modifications
+// https://github.com/0xKitsune/cfmms-rs/tree/main/src/batch_requests
 use std::{sync::Arc, vec};
 
 use ethers::{
