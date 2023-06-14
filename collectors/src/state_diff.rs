@@ -66,6 +66,8 @@ where
     GetTransactionTraceError,
 }
 
+// credit to rusty-sando
+// https://github.com/mouseless-eth/rusty-sando/blob/master/bot/src/utils/state_diff.rs
 // Extract state diffs from a given tx
 //
 // Arguments:
@@ -205,6 +207,8 @@ pub async fn extract_arb_pools(
     Some(arb_pools)
 }
 
+// credit to rusty-sando
+// https://github.com/mouseless-eth/rusty-sando/blob/master/bot/src/utils/state_diff.rs
 pub fn extract_sandwich_pools(
     state_diffs: &BTreeMap<Address, AccountDiff>,
     all_pools: &DashMap<Address, Pool>,
@@ -251,6 +255,9 @@ pub fn extract_sandwich_pools(
     Some(tradable_pools)
 }
 
+
+// credit to rusty-sando
+// https://github.com/mouseless-eth/rusty-sando/blob/master/bot/src/utils/state_diff.rs
 //  Turn state_diffs into a new cache_db
 //
 // Arguments:

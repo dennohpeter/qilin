@@ -25,6 +25,8 @@ pub struct RequestThrottle {
     requests_per_second: usize,
 }
 
+// credit to cfmms-rs
+// https://github.com/0xKitsune/cfmms-rs/blob/main/src/throttle.rs
 impl RequestThrottle {
     pub fn new(requests_per_second_limit: usize) -> RequestThrottle {
         if requests_per_second_limit > 0 {
@@ -63,6 +65,8 @@ impl RequestThrottle {
     }
 }
 
+// credit to rusty-sando
+// https://github.com/mouseless-eth/rusty-sando/blob/master/bot/src/cfmm/dex.rs
 #[derive(Clone, Copy)]
 pub struct Dex {
     pub factory_address: Address,
