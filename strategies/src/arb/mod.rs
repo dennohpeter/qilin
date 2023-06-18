@@ -395,19 +395,21 @@ mod test {
     use std::env;
 
     use super::*;
-    use crate::utils::constants::{
-        UNISWAP_V2_WETH_USDC_LP, UNISWAP_V3_WETH_USDC_LP_0_01, USDC_ADDRESS, WETH_ADDRESS,
-    };
     use dotenv::dotenv;
     use ethers::{
-        core::types::{Block, H160, U256},
-        providers::{Middleware, Provider, Ws},
-        signers::LocalWallet,
+        core::types::{H160, U256},
+        providers::{Provider, Ws},
     };
     use qilin_cfmms::pool::{Pool, PoolType, PoolVariant};
 
+    pub const USDC_ADDRESS: &str = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+    pub const WETH_ADDRESS: &str = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+    pub const UNISWAP_V2_WETH_USDC_LP: &str = "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc";
+    pub const UNISWAP_V3_WETH_USDC_LP_0_01: &str = "0xE0554a476A092703abdB3Ef35c80e0D76d32939F";
+
     #[tokio::test]
     async fn test_calc_optimal_arb() {
+        dotenv().ok();
         let _blast_key = env::var("BLAST_API_KEY").unwrap();
         let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
         let provider = Arc::new(

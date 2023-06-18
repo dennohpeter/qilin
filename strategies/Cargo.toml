@@ -8,9 +8,22 @@ edition = "2021"
 [dependencies]
 argmin = "0.8.1"
 ethers = { workspace = true }
+parking_lot = { workspace = true }
+anyhow = { workspace = true }
 cfmms = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+artemis = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+eyre = { workspace = true }
+dotenv = { workspace = true }
+dashmap = { workspace = true }
+hashbrown = { workspace = true }
+async-trait = { workspace = true }
 
 qilin_cfmms = { path = "../cfmms" }
+fork_database = { path = "../fork-database" }
+collectors = { path = "../collectors" }
 uniswap_v3_math = "0.4.0"
+hex = "0.4.3"
