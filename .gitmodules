@@ -16,3 +16,6 @@
 [submodule "contract/lib/ds-test"]
 	path = contract/lib/ds-test
 	url = https://github.com/dapphub/ds-test
+[submodule "strategies/src/sandwich/contracts/lib/v2-core"]
+	path = strategies/src/sandwich/contracts/lib/v2-core
+	url = https://github.com/Uniswap/v2-core
