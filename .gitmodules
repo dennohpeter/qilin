@@ -22,3 +22,6 @@
 [submodule "strategies/src/sandwich/contracts/lib/v3-core"]
 	path = strategies/src/sandwich/contracts/lib/v3-core
 	url = https://github.com/uniswap/v3-core
+[submodule "strategies/src/sandwich/contracts/lib/v2-periphery"]
+	path = strategies/src/sandwich/contracts/lib/v2-periphery
+	url = https://github.com/uniswap/v2-periphery
