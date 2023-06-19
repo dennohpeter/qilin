@@ -10,3 +10,6 @@
 [submodule "strategies/contract/lib/ds-test"]
 	path = strategies/contract/lib/ds-test
 	url = https://github.com/dapphub/ds-test
+[submodule "strategies/contract/lib/foundry-huff"]
+	path = strategies/contract/lib/foundry-huff
+	url = https://github.com/huff-language/foundry-huff
