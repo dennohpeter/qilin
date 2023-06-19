@@ -1,3 +1,6 @@
 [submodule "strategies/src/sandwich/contracts/rusty_sando/lib/ds-test"]
 	path = strategies/src/sandwich/contracts/rusty_sando/lib/ds-test
 	url = https://github.com/dapphub/ds-test
+[submodule "strategies/src/sandwich/contracts/lib/ds-test"]
+	path = strategies/src/sandwich/contracts/lib/ds-test
+	url = https://github.com/dapphub/ds-test
