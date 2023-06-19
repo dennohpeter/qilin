@@ -46,10 +46,10 @@ where
     println!("{:?}", json_data);
 
     if hash_addr {
-        let mut file = File::create("qilin/src/assets/all_pools_hashed.json").unwrap();
+        let mut file = File::create("./src/assets/all_pools_hashed.json").unwrap();
         file.write_all(json_data.as_bytes()).unwrap();
     } else {
-        let mut file = File::create("qilin/src/assets/all_pools.json").unwrap();
+        let mut file = File::create("./src/assets/all_pools.json").unwrap();
         file.write_all(json_data.as_bytes()).unwrap();
     }
 
@@ -59,11 +59,11 @@ where
 pub async fn read_pool_data(
     provider: Arc<Provider<Ws>>,
 ) -> Result<(DashMap<Address, Pool>, DashMap<Address, Vec<Pool>>), ReadError> {
-    let pool_json_data = match fs::read_to_string("qilin/src/assets/all_pools.json") {
+    let pool_json_data = match fs::read_to_string("./src/assets/all_pools.json") {
         Ok(data) => data,
         Err(_) => return Err(ReadError::FileNotFound),
     };
-    let hash_json_data = match fs::read_to_string("qilin/src/assets/all_pools_hashed.json") {
+    let hash_json_data = match fs::read_to_string("./src/assets/all_pools_hashed.json") {
         Ok(data) => data,
         Err(_) => return Err(ReadError::FileNotFound),
     };

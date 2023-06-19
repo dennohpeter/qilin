@@ -23,7 +23,6 @@ impl SandwichMaker {
         let sandwich_address = state::get_sandwich_contract_address();
         let searcher_wallet = state::get_searcher_wallet();
 
-
         let nonce = if let Ok(n) = provider
             .get_transaction_count(searcher_wallet.address(), None)
             .await
@@ -49,5 +48,3 @@ impl SandwichMaker {
 pub fn get_weth_encode_divisor() -> U256 {
     U256::from(100000)
 }
-
-

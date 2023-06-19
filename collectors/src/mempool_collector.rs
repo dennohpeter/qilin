@@ -14,18 +14,14 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio_stream::StreamExt;
+use crate::types::NewTx;
 
 pub struct QilinMempoolCollector<M> {
     provider: Arc<M>,
     block: RwLock<Block<H256>>,
 }
 
-/// A new block event, containing the block number and hash.
-#[derive(Debug, Clone)]
-pub struct NewTx {
-    pub tx: Transaction,
-    pub state_diff: BTreeMap<H160, AccountDiff>,
-}
+
 
 impl NewTx {
     pub fn new(tx: Transaction, state_diff: BTreeMap<H160, AccountDiff>) -> Self {

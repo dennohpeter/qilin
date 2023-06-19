@@ -10,11 +10,11 @@ ethers = { workspace = true }
 dashmap = { workspace = true }
 log = { workspace = true }
 url = { workspace = true }
+parking_lot = { workspace = true }
 ethers-flashbots = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 dotenv = { workspace = true }
-parking_lot = { workspace = true }
 eyre = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

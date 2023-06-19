@@ -1,7 +1,4 @@
-use collectors::types::{
-    BlockPayload,
-    NewTx,
-};
+use collectors::types::{BlockPayload, NewTx};
 
 /// Core Event implementation for the strategies
 #[derive(Debug, Clone)]

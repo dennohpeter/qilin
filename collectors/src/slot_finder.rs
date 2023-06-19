@@ -9,13 +9,16 @@ use ethers::{
 use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
+use log;
 
+/// Given a ERC20 token address and a pool address, find storage slot in the `balanceOf` mapping
 pub async fn slot_finder(
     provider: Arc<Provider<Ws>>,
     token_address: H160,
     pool_address: H160,
 ) -> Option<U256> {
-    let mut file = File::open("abi/erc20.json").unwrap();
+
+    let mut file = File::open("..abi/erc20.json").unwrap();
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
     let abi: Abi = serde_json::from_str(&contents).unwrap();
@@ -35,15 +38,15 @@ pub async fn slot_finder(
     {
         Ok(b) => b,
         Err(e) => {
-            println!("Error: {}", e);
+            log::error!("Error: {}", e);
             return None;
         }
     };
 
     let mut slot;
     // TODO: use threads
+    // TODO: use while loop
     for i in 0..=100 {
-        // TODO: use while loop
         slot = U256::from(i);
         let tx_hash = TxHash::from(ethers::utils::keccak256(abi::encode(&[
             abi::Token::Address(pool_address),
@@ -71,16 +74,15 @@ pub async fn slot_finder(
 // mod test {
 
 //     use super::*;
-//     // use ethers::prelude::*;
-//     // use ethers::types::U256;
-//     // use ethers::{
-//     //     providers::{Middleware, Provider},
-//     //     types::H160,
-//     // };
-//     // use std::sync::Arc;
+//     use ethers::prelude::*;
+//     use ethers::types::U256;
+//     use ethers::{
+//         providers::{Middleware, Provider, Ws},
+//         types::H160,
+//     };
+//     use std::sync::Arc;
 
-//     use crate::state_manager::block_processor::process_block_update;
-//     use crate::utils::helpers::connect_to_network;
+//     use crate::block_collector::process_block_update;
 //     use dotenv::dotenv;
 //     use ethers::providers::{Middleware, Provider, Ws};
 //     use ethers::types::{BlockId, BlockNumber};
@@ -93,36 +95,26 @@ pub async fn slot_finder(
 
 //     #[tokio::test]
 //     async fn test_balance_of_slot_finder() {
-//         //let provider = Arc::new(client.clone());
+
 //         dotenv().ok();
 //         let _blast_key = env::var("BLAST_API_KEY").unwrap();
 //         let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
 
-//         let result: Result<_, Box<dyn Error>> =
-//             connect_to_network(&mainnet_blast_url, "https://relay.flashbots.net", 1).await;
-
-//         let mut _ws_provider: Option<Arc<Provider<Ws>>> = None;
-//         match result {
-//             Ok((ws, _, _)) => {
-//                 _ws_provider = Some(ws);
-//             }
-//             Err(e) => {
-//                 println!("Error: {}", e);
-//             }
-//         }
-
-//         let ws_provider = _ws_provider.unwrap();
+//         let ws_provider = Provider::<Ws>::connect(mainnet_blast_url).await.unwrap();
 
 //         let val = slot_finder(
+//             // WETH
 //             "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 //                 .parse::<H160>()
 //                 .unwrap(),
+//             // Uniswap V2: WETH/USDT
 //             "0x06da0fd433C1A5d7a4faa01111c044910A184553"
 //                 .parse::<H160>()
 //                 .unwrap(),
 //         )
 //         .await;
 
+// 	// `balanceOf` slot on WETH is 3
 //         assert_eq!(val, Some(U256::from(3)));
 //     }
 // }

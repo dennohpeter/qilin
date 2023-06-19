@@ -21,9 +21,13 @@ dotenv = { workspace = true }
 dashmap = { workspace = true }
 hashbrown = { workspace = true }
 async-trait = { workspace = true }
+serde_json = { workspace = true }
 
 qilin_cfmms = { path = "../cfmms" }
 fork_database = { path = "../fork-database" }
 collectors = { path = "../collectors" }
 uniswap_v3_math = "0.4.0"
 hex = "0.4.3"
+
+[build-dependencies]
+ethers-solc = { git = "https://github.com/gakonst/ethers-rs" }

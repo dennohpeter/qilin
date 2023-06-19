@@ -1,6 +1,4 @@
-use ethers::{
-    prelude::*,
-};
+use ethers::prelude::*;
 abigen!(
     Erc20,
     "src/sandwich/abi/ierc20.json",

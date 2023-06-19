@@ -21,8 +21,9 @@ use std::sync::{Arc, Mutex};
 
 use artemis::{engine::Engine, types::Collector};
 use collectors::{
-    block_collector::{BlockPayload, QilinBlockCollector},
-    mempool_collector::{NewTx, QilinMempoolCollector},
+    block_collector::QilinBlockCollector,
+    mempool_collector::QilinMempoolCollector,
+    types::{BlockPayload, NewTx},
 };
 
 pub async fn runner() -> Result<()> {

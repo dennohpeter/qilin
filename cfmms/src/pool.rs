@@ -93,7 +93,7 @@ impl Pool {
         match pool_variant {
             PoolVariant::UniswapV2 => {
                 if let Ok(_pool_type) =
-                    pool::UniswapV2Pool::new_from_address(address, provider).await
+                    pool::UniswapV2Pool::new_from_address(address, provider.clone()).await
                 {
                     // println!("Getting Uni V2 Pool: {:?}", _pool_type);
 
@@ -115,7 +115,7 @@ impl Pool {
             }
             PoolVariant::UniswapV3 => {
                 if let Ok(_pool_type) =
-                    pool::UniswapV3Pool::new_from_address(address, provider).await
+                    pool::UniswapV3Pool::new_from_address(address, provider.clone()).await
                 {
                     // println!("Getting Uni V3 Pool: {:?}", _pool_type);
                     let res = Pool {

@@ -1,0 +1,43 @@
+{
+	"0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640": {
+		"address": "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640",
+		"token_0": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+		"token_1": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+		"swap_fee": "0x2710",
+		"pool_variant": "UniswapV3",
+		"pool_type": {
+			"UniswapV3": {
+				"address": "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640",
+				"token_a": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+				"token_a_decimals": 18,
+				"token_b": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+				"token_b_decimals": 18,
+				"liquidity": 0,
+				"sqrt_price": "0x4337b921a522d5e0ff24",
+				"fee": 10000,
+				"tick": -248565,
+				"tick_spacing": 200,
+				"liquidity_net": 0
+			}
+		}
+	},
+	"0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc": {
+		"address": "0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc",
+		"token_0": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+		"token_1": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+		"swap_fee": "0xbb8",
+		"pool_variant": "UniswapV2",
+		"pool_type": {
+			"UniswapV2": {
+				"address": "0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc",
+				"token_a": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+				"token_a_decimals": 9,
+				"token_b": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+				"token_b_decimals": 18,
+				"reserve_0": 17287911696837382242305,
+				"reserve_1": 11728791169683738222322,
+				"fee": 300
+			}
+		}
+	}
+}

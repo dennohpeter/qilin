@@ -156,9 +156,9 @@ pub async fn setup() -> Result<
         panic!("Could not parse FLASHBOTS_IDENTIFIER");
     });
 
-    let _wallet = env::var("FLASHBOTS_SIGNER").unwrap_or_else(|e| {
+    let _wallet = env::var("PRIVATE_KEY").unwrap_or_else(|e| {
         SetupError::LoadingEnvironmentVariableError(e);
-        panic!("Please set the FLASHBOTS_SIGNER environment variable");
+        panic!("Please set the PRIVATE_KEY environment variable");
     });
 
     // let addr = env::var("SANDWICH_CONTRACT").unwrap_or_else(|e| {
@@ -180,11 +180,6 @@ pub async fn setup() -> Result<
 
     flashbot_middleware.set_simulation_relay(middleware_url.clone(), bundle_signer.clone());
     let flashbot_client = SignerMiddleware::new(flashbot_middleware, wallet);
-
-    // let _weth_contract =
-    // 	weth_contract::weth::new(WETH_ADDRESS.parse::<H160>()?, Arc::clone(&flashbot_client));
-    // let weth_balance = _weth_contract.balance_of(wallet.address()).call().await?;
-    // let _wallet_weth_balance = Arc::new(Mutex::new(weth_balance));
 
     // sync pools
     let (all_pools, hash_pools) = load_pools(flashbot_client.inner().inner().clone()).await?;

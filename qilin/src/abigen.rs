@@ -10,6 +10,7 @@ use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
+use log;
 
 pub async fn generate_abigen(
     client: &Client,
@@ -18,11 +19,11 @@ pub async fn generate_abigen(
 ) -> Result<()> {
     let metadata = client.contract_source_code(contract_address).await?;
     let abi = metadata.items[0].abi.as_str();
-    println!("ABI: {:?}", abi);
+    log::info!("ABI: {:?}", abi);
 
     let mut file = File::create(format!("../abi/{}.json", contract_name.to_lowercase()))?;
     file.write_all(abi.as_bytes())?;
-    println!("writing to file: {:?}", contract_name.to_lowercase());
+    log::info!("writing to file: {:?}", contract_name.to_lowercase());
 
     let abi_source = format!("../abi/{}.json", contract_name.to_lowercase());
     Abigen::new(contract_name.to_lowercase(), abi_source)
@@ -61,7 +62,7 @@ pub async fn generate_abigen_for_addresses() -> Result<(), Box<dyn Error>> {
     let mut parsed_addr;
     for (name, addr) in address_book {
         parsed_addr = addr.parse::<H160>()?;
-        generate_abigen(&etherscan_client, name, parsed_addr).await;
+        let _ = generate_abigen(&etherscan_client, name, parsed_addr).await;
     }
 
     Ok(())

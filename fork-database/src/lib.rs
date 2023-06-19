@@ -16,6 +16,7 @@ use foundry_evm::executor::opts::EvmOpts;
 use std::env;
 use std::{collections::BTreeSet, sync::Arc};
 
+/// Setup forked database 
 pub async fn setup_fork_db() -> ForkedDatabase {
     dotenv().ok();
     let _blast_key = env::var("BLAST_API_KEY").unwrap();
@@ -59,7 +60,6 @@ pub async fn setup_fork_db() -> ForkedDatabase {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::blockchain_db::{BlockchainDb, BlockchainDbMeta, JsonBlockCacheDB};
     use crate::forked_db::ForkedDatabase;
     use crate::shared_backend::SharedBackend;
@@ -72,7 +72,6 @@ mod tests {
     use foundry_config::Config;
     use foundry_evm::executor::opts::EvmOpts;
     use hashbrown::HashMap as Map;
-    use parking_lot::RwLock;
     use std::env;
     use std::{collections::BTreeSet, path::PathBuf, sync::Arc};
 
