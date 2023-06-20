@@ -5,7 +5,7 @@ pragma solidity >=0.8.15;
 import "../interfaces/IERC20.sol";
 import "./lib/SafeTransfer.sol";
 
-contract Sandwich {
+contract Sandwicher {
     using SafeTransfer for IERC20;
 
     // Authorized
