@@ -25,3 +25,6 @@
 [submodule "strategies/src/sandwich/contracts/lib/v2-periphery"]
 	path = strategies/src/sandwich/contracts/lib/v2-periphery
 	url = https://github.com/uniswap/v2-periphery
+[submodule "strategies/src/sandwich/contracts/lib/forge-std"]
+	path = strategies/src/sandwich/contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
