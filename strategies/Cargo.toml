@@ -29,5 +29,3 @@ collectors = { path = "../collectors" }
 uniswap_v3_math = "0.4.0"
 hex = "0.4.3"
 
-[build-dependencies]
-ethers-solc = { git = "https://github.com/gakonst/ethers-rs" }

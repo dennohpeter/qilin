@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.15;
 
 import "../interfaces/IERC20.sol";
 import "v2-core/interfaces/IUniswapV2Pair.sol";
 import "v2-periphery/interfaces/IUniswapV2Router02.sol";
-import "v3-core/interfaces/IUniswapV3Pool.sol";
+import "v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "./lib/SafeMath.sol";
 
-// direct copy of BrainDance.sol from
-// https://github.com/mouseless-eth/rusty-sando/blob/master/contract/src/BrainDance.sol
 contract BrainDance {
     using SafeMath for uint;
 

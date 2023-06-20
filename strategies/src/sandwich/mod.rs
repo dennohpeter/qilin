@@ -58,15 +58,11 @@ where
         provider: Arc<M>,
         all_pools: AllPools,
         fork_db: Arc<ForkedDatabase>,
-	test: bool,
-	sandwich_address: Option<Address>
+        test: bool,
+        sandwich_address: Option<Address>,
     ) -> Result<Self> {
-        let sandwich_state = Arc::new(BotState::new(
-		init_block, 
-		&provider,
-		test,
-		sandwich_address
-	).await?);
+        let sandwich_state =
+            Arc::new(BotState::new(init_block, &provider, test, sandwich_address).await?);
 
         Ok(Self {
             provider,
@@ -98,27 +94,28 @@ mod tests {
 
     /// Setup test environment
     async fn setup() -> Result<(RustySandoStrategy<Provider<Ws>>, AnvilInstance)> {
-
         // setup anvil instance for testing
         // note: spawn() will panic if spawn is called without anvil being available in the user’s $PATH
         let anvil = Anvil::new()
-		.fork("https://eth.llamarpc.com")
-		.fork_block_number(17508706 as u64)
-		.spawn();
+            .fork("https://eth.llamarpc.com")
+            .fork_block_number(17508706 as u64)
+            .spawn();
         let url = anvil.ws_endpoint().to_string();
-        let provider = Arc::new(Provider::<Ws>::connect(url).await.ok().ok_or(
-		 eyre::eyre!("Error connecting to anvil instance")
-	)?);
+        let provider = Arc::new(
+            Provider::<Ws>::connect(url)
+                .await
+                .ok()
+                .ok_or(eyre::eyre!("Error connecting to anvil instance"))?,
+        );
 
         // get block number
         let block_num = provider.get_block_number().await.unwrap();
 
         // load test all_pools.json
-        let pool_json_data =
-            match fs::read_to_string("./src/sandwich/test_data/all_pools.json") {
-                Ok(data) => data,
-                Err(e) => return Err(eyre::eyre!("Error reading all_pools.json: {}", e)),
-            };
+        let pool_json_data = match fs::read_to_string("./src/sandwich/test_data/all_pools.json") {
+            Ok(data) => data,
+            Err(e) => return Err(eyre::eyre!("Error reading all_pools.json: {}", e)),
+        };
 
         let pool_btree_map: BTreeMap<Address, Pool> = serde_json::from_str(&pool_json_data)?;
 
@@ -138,8 +135,8 @@ mod tests {
             provider.clone(),
             Arc::new(RwLock::new(all_pools)),
             Arc::new(fork_db),
-	    true,
-	    None
+            true,
+            None,
         )
         .await?;
 
@@ -148,10 +145,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_rusty_sando_strategy() -> Result<()> {
-	let (rusty, anvil) = setup().await?;
+        let (rusty, anvil) = setup().await?;
 
-	Ok(())
-
+        Ok(())
     }
 
     /// initialize pool for test

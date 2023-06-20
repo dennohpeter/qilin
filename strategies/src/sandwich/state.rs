@@ -32,27 +32,25 @@ impl BotState {
     // Ok(BotState) if successful
     // Err(eyre::Error) if failed to create instance
     pub async fn new<M>(
-        sandwich_inception_block: U64, 
-        client: &Arc<M>, 
-        test: bool, 
-        sandwich_address: Option<Address>
+        sandwich_inception_block: U64,
+        client: &Arc<M>,
+        test: bool,
+        sandwich_address: Option<Address>,
     ) -> Result<Self>
     where
         M: Middleware + 'static,
         M::Provider: PubsubClient,
         M::Provider: JsonRpcClient,
     {
-        let token_dust = Self::find_all_dust(sandwich_inception_block, client, test, sandwich_address).await?;
+        let token_dust =
+            Self::find_all_dust(sandwich_inception_block, client, test, sandwich_address).await?;
         let token_dust = Arc::new(RwLock::new(token_dust));
 
         let sandy_addr = get_sandy_addr(test, sandwich_address);
 
         let weth_contract =
             utils::contracts::get_erc20_contract(&utils::constants::get_weth_address(), client);
-        let weth_balance = weth_contract
-            .balance_of(sandy_addr)
-            .call()
-            .await?;
+        let weth_balance = weth_contract.balance_of(sandy_addr).call().await?;
         let weth_balance = Arc::new(RwLock::new(weth_balance));
 
         Ok(BotState {
@@ -104,10 +102,10 @@ impl BotState {
     // `Ok(Vec<Address>)`: address of token dust collected by bot
     // `Err(eyre::Error)`: failed to find dust
     async fn find_all_dust<M>(
-        start_block: U64, 
+        start_block: U64,
         client: &Arc<M>,
         test: bool,
-        sandwich_address: Option<Address>
+        sandwich_address: Option<Address>,
     ) -> Result<Vec<Address>>
     where
         M: Middleware + 'static,
@@ -203,7 +201,7 @@ pub fn get_searcher_wallet() -> LocalWallet {
 }
 
 fn get_sandy_addr(test: bool, sandwich_address: Option<Address>) -> Address {
-    let mut sandy_addr: Address;
+    let sandy_addr: Address;
     if test {
         sandy_addr = match sandwich_address {
             Some(addr) => addr,

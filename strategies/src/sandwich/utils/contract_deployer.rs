@@ -2,43 +2,64 @@ use ethers::{
     contract::{abigen, ContractFactory},
     core::utils::Anvil,
     middleware::SignerMiddleware,
-    providers::{Http, Provider},
+    providers::{Http, Middleware, Provider},
     signers::{LocalWallet, Signer},
-    solc::Solc,
+    solc::{Artifact, Project, ProjectPathsConfig},
+    types::U256,
+    utils::parse_units,
 };
 use eyre::Result;
-use std::{path::Path, sync::Arc, time::Duration, str::FromStr};
+use std::{path::PathBuf, str::FromStr, sync::Arc, time::Duration};
 
-// abigen!(
-//     SandwichDeployer,
-//     r#"[
-//         function setUp(address) internal;
-//     ]"#,
-//     event_derives(serde::Deserialize, serde::Serialize)
-// );
+abigen!(
+    SandwichDeployer,
+    "./src/sandwich/contracts/out/SandwichDeployer.sol/SandwichDeployer.json",
+    event_derives(serde::Deserialize, serde::Serialize)
+);
+
+pub async fn deploy_contract_to_anvil() -> Result<()> {
+    let anvil = Anvil::new()
+	.chain_id(1 as u64)
+        .fork("https://eth.llamarpc.com")
+        .fork_block_number(17508706 as u64)
+        .spawn();
+
+    let wallet: LocalWallet = anvil.keys()[0].clone().into();
+    let url = anvil.endpoint().to_string();
+    let provider =
+        Arc::new(Provider::<Http>::try_from(url)?.interval(Duration::from_millis(10u64)));
+
+    let client = SignerMiddleware::new(provider, wallet);
+    let client = Arc::new(client);
+
+    let contract = match SandwichDeployer::deploy(client.clone(), ())?
+        .send()
+        .await
+    {
+        Ok(contract) => contract,
+        Err(e) => return Err(eyre::eyre!("Error deploying contract: {}", e)),
+    };
+
+    let contract = SandwichDeployer::new(contract.address(), client.clone());
+
+    let value = U256::from(
+	parse_units("1000.0", "ether").unwrap()
+    );
+
+//     let addr = contract.run().value(value).send().await?.await?;
+    let addr = contract.run().send().await?.await?;
 
 
-pub fn deploy_sandwich_contract_to_anvil() -> Result<()> {
 
-	let source = Path::new(&env!("CARGO_MANIFEST_DIR")).join("src/sandwitch/contracts/src/SandwichDeployer.sol");
-	println!("source: {:?}", source);
-	let compiled = Solc::default().compile_source(source).expect("could not compile source");
-	println!("compiled: {:?}", compiled);
-	let (abi, bytecode, runtime_bytecode) = compiled.find("SimpleStorage").expect("could not find contract").into_parts_or_default();
-
-
-	Ok(())
-
+    Ok(())
 }
-
 
 #[cfg(test)]
 mod tests {
-	use crate::sandwich::utils::contract_deployer::deploy_sandwich_contract_to_anvil;
+    use crate::sandwich::utils::contract_deployer::deploy_contract_to_anvil;
 
-	#[test]
-	fn test_deploy_sandwich_contract() {
-		deploy_sandwich_contract_to_anvil().unwrap();
-	}
-
+    #[tokio::test]
+    async fn test_deploy_contract() {
+        deploy_contract_to_anvil().await.unwrap();
+    }
 }
