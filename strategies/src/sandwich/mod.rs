@@ -24,15 +24,16 @@ use fork_database::forked_db::ForkedDatabase;
 
 type AllPools = Arc<RwLock<DashMap<Address, Pool>>>;
 
-/// sandwich strategy directly ported from RustySando repo
+/// Sandwich strategy directly ported from RustySando repo
 /// https://github.com/mouseless-eth/rusty-sando
 #[derive(Clone, Debug)]
-pub struct RustySandoStrategy<M> {
-    provider: Arc<M>,
-    inception_block: U64,
-    sandwich_state: Arc<BotState>,
-    all_pools: AllPools,
-    fork_db: Arc<ForkedDatabase>,
+pub struct RustySandoStrategy<M, S> {
+    pub provider: Arc<M>,
+    pub wallet: Arc<SignerMiddleware<Arc<M>, S>>,
+    pub inception_block: U64,
+    pub sandwich_state: Arc<BotState>,
+    pub all_pools: AllPools,
+    pub fork_db: Arc<ForkedDatabase>,
     // TODO: add bundle sender
 }
 
@@ -49,15 +50,17 @@ pub struct RustySandoStrategy<M> {
 // 	}
 // }
 
-impl<M> RustySandoStrategy<M>
+impl<M, S> RustySandoStrategy<M, S>
 where
     M: Middleware + 'static,
     M::Provider: PubsubClient,
     M::Provider: JsonRpcClient,
+    S: Signer + 'static,
 {
     pub async fn new(
         init_block: U64,
         provider: Arc<M>,
+        wallet: Arc<SignerMiddleware<Arc<M>, S>>,
         all_pools: AllPools,
         fork_db: Arc<ForkedDatabase>,
         test: bool,
@@ -68,6 +71,7 @@ where
 
         Ok(Self {
             provider,
+            wallet,
             inception_block: init_block,
             sandwich_state,
             all_pools,
@@ -82,8 +86,9 @@ mod tests {
     use crate::types::{Action, Event};
     use ethers::{
         core::utils::{Anvil, AnvilInstance},
+        core::k256::ecdsa::SigningKey,
         providers::{Middleware, Provider, Ws},
-        types::{Address, U256},
+        types::{Address, U256, H256, BlockNumber},
     };
     use eyre::Result;
     use fork_database;
@@ -93,14 +98,18 @@ mod tests {
     use std::collections::BTreeMap;
     use std::fs;
     use utils::contract_deployer::deploy_contract_to_anvil;
+    use collectors::types::NewTx;
+    use super::utils::state_diff::get_from_txs;
+
+    const INIT_BLOCK: u64 = 13733864 as u64; 
 
     /// Setup anvil test environment
-    async fn setup() -> Result<(RustySandoStrategy<Provider<Ws>>, AnvilInstance)> {
+    async fn setup() -> Result<(RustySandoStrategy<Provider<Ws>, Wallet<SigningKey>>, AnvilInstance)> {
         // setup anvil instance for testing
         // note: spawn() will panic if spawn is called without anvil being available in the user’s $PATH
         let anvil = Anvil::new()
             .fork("https://eth.llamarpc.com")
-            .fork_block_number(17508706 as u64)
+            .fork_block_number(INIT_BLOCK)
             .spawn();
 
         let url = anvil.ws_endpoint().to_string();
@@ -130,7 +139,11 @@ mod tests {
         }
 
         // setup fork database
-        let fork_db = fork_database::setup_fork_db().await;
+        let fork_db = fork_database::setup_fork_db(
+            provider.clone(),
+            "https://eth.llamarpc.com".to_string(),
+            "wss://eth.llamarpc.com".to_string(),
+        ).await;
 
         // setup wallet and client for sandwich contract deployment
         let wallet: LocalWallet = anvil.keys()[0].clone().into();
@@ -143,6 +156,7 @@ mod tests {
         let rusty = RustySandoStrategy::new(
             block_num,
             provider.clone(),
+            client.clone(),
             Arc::new(RwLock::new(all_pools)),
             Arc::new(fork_db),
             true,
@@ -156,6 +170,29 @@ mod tests {
     #[tokio::test]
     async fn test_rusty_sando_strategy() -> Result<()> {
         let (rusty, anvil) = setup().await?;
+
+        // create the simulate mempool tx
+        let mut simulated_mempool_tx = NewTx::default().tx;
+
+        // https://etherscan.io/tx/0x34d66ff483426f41b245881a92ce450579742e29aa85f256b752ed2403e5c8d1
+        let bytes: &mut [u8] = &mut "0x34d66ff483426f41b245881a92ce450579742e29aa85f256b752ed2403e5c8d1".as_bytes().to_vec();
+        let bytes_array: [u8; 32] = [0; 32];
+        for (&x, p) in bytes_array.iter().zip(bytes.iter_mut()) {
+            *p = x;
+        };
+        simulated_mempool_tx.hash = H256::from(bytes_array);
+        println!("simulated mempool tx: {:?}", simulated_mempool_tx);
+
+        let res = get_from_txs(
+            &rusty.provider.clone(),
+            &vec![simulated_mempool_tx.clone()],
+            BlockNumber::Number(INIT_BLOCK.into()),
+        ).await.unwrap();
+        println!("res: {:?}", res);
+
+
+
+
 
         Ok(())
     }
