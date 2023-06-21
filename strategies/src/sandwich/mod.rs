@@ -151,6 +151,7 @@ mod tests {
 
         // load the sandwich contract
         let contract = deploy_contract_to_anvil(client.clone()).await?;
+        println!("Deployed contract to address: {}", contract.address());
 
         // initialize rusty sando strategy
         let rusty = RustySandoStrategy::new(

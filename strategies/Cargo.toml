@@ -21,6 +21,8 @@ dotenv = { workspace = true }
 dashmap = { workspace = true }
 hashbrown = { workspace = true }
 async-trait = { workspace = true }
+futures = { workspace = true }
+revm = { workspace = true }
 serde_json = { workspace = true }
 ethers-flashbots = { workspace = true }
 

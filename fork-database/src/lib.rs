@@ -9,22 +9,17 @@ pub mod utils;
 use crate::blockchain_db::{BlockchainDb, BlockchainDbMeta};
 use crate::forked_db::ForkedDatabase;
 use crate::shared_backend::SharedBackend;
-use dotenv::dotenv;
 use ethers::providers::{Http, Middleware, Provider, Ws};
 use foundry_config::Config;
 use foundry_evm::executor::opts::EvmOpts;
-use std::env;
 use std::{collections::BTreeSet, sync::Arc};
 
 /// Setup forked database 
-pub async fn setup_fork_db() -> ForkedDatabase {
-    dotenv().ok();
-    let _blast_key = env::var("BLAST_API_KEY").unwrap();
-    let mainnet_blast_http_url = format!("https://eth-mainnet.blastapi.io/{}", _blast_key);
-
-    // EvmOpts only allows http provider
-    let provider = Provider::<Http>::try_from(mainnet_blast_http_url.clone())
-        .expect("could not connect to mainnet");
+pub async fn setup_fork_db(
+    provider: Arc<Provider<Ws>>,
+    http_url: String,
+    ws_url: String,
+) -> ForkedDatabase {
 
     let block_num = provider.get_block_number().await.unwrap();
     let config = Config::figment();
@@ -32,26 +27,19 @@ pub async fn setup_fork_db() -> ForkedDatabase {
     evm_opts.fork_block_number = Some(block_num.as_u64().clone());
 
     let (env, _block) = evm_opts
-        .fork_evm_env(mainnet_blast_http_url.clone())
+        .fork_evm_env(http_url.clone())
         .await
         .unwrap();
 
-    let _blast_key = env::var("BLAST_API_KEY").unwrap();
-    let mainnet_blast_ws_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
-
-    let provider = Provider::<Ws>::connect(mainnet_blast_ws_url.clone())
-        .await
-        .ok()
-        .unwrap();
 
     let meta = BlockchainDbMeta {
         cfg_env: env.cfg,
         block_env: env.block,
-        hosts: BTreeSet::from([mainnet_blast_ws_url.clone().to_string()]),
+        hosts: BTreeSet::from([ws_url.clone()]),
     };
 
     let db = BlockchainDb::new(meta, None);
-    let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+    let backend = SharedBackend::spawn_backend(provider.clone(), db.clone(), None).await;
 
     let forked_db = ForkedDatabase::new(backend.clone(), db.clone());
 
@@ -66,37 +54,33 @@ mod tests {
     use revm::db::{DatabaseCommit, DatabaseRef};
     use revm::primitives::{Account, B160, U256 as rU256};
 
-    use dotenv::dotenv;
     use ethers::providers::{Http, Middleware, Provider, Ws};
     use ethers::types::U64;
     use foundry_config::Config;
     use foundry_evm::executor::opts::EvmOpts;
     use hashbrown::HashMap as Map;
-    use std::env;
     use std::{collections::BTreeSet, path::PathBuf, sync::Arc};
 
     async fn setup() -> (Provider<Ws>, String) {
-        dotenv().ok();
 
-        let _blast_key = env::var("BLAST_API_KEY").unwrap();
-        let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
+        let mainnet_ws_url = "wss://eth.llamarpc.com";
 
-        let provider = Provider::<Ws>::connect(mainnet_blast_url.clone())
+        let provider = Provider::<Ws>::connect(mainnet_ws_url.clone())
             .await
             .ok()
             .unwrap();
 
-        (provider, mainnet_blast_url)
+        (provider, mainnet_ws_url.to_string())
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_blockchaindb_shared_backend_syncing() {
-        let (provider, mainnet_blast_url) = setup().await;
+        let (provider, mainnet_url) = setup().await;
 
         let meta = BlockchainDbMeta {
             cfg_env: Default::default(),
             block_env: Default::default(),
-            hosts: BTreeSet::from([mainnet_blast_url.clone().to_string()]),
+            hosts: BTreeSet::from([mainnet_url.clone().to_string()]),
         };
 
         let db = BlockchainDb::new(meta, None);
@@ -140,14 +124,14 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_flush_and_read_cache() {
-        let (provider, mainnet_blast_url) = setup().await;
+        let (provider, mainnet_url) = setup().await;
 
         let cache_path = PathBuf::from("src/cache_data/storage.json");
 
         let meta = BlockchainDbMeta {
             cfg_env: Default::default(),
             block_env: Default::default(),
-            hosts: BTreeSet::from([mainnet_blast_url.clone().to_string()]),
+            hosts: BTreeSet::from([mainnet_url.clone().to_string()]),
         };
 
         let db = BlockchainDb::new(meta, Some(cache_path.clone()));
@@ -172,12 +156,10 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_forkdb() {
-        dotenv().ok();
-        let _blast_key = env::var("BLAST_API_KEY").unwrap();
-        let mainnet_blast_url = format!("https://eth-mainnet.blastapi.io/{}", _blast_key);
+        let mainnet_url = "https://eth.llamarpc.com";
 
         // EvmOpts only allows http provider
-        let provider = Provider::<Http>::try_from(mainnet_blast_url.clone())
+        let provider = Provider::<Http>::try_from(mainnet_url.clone())
             .expect("could not connect to mainnet");
 
         let block_num = provider.get_block_number().await.unwrap();
@@ -186,7 +168,7 @@ mod tests {
         evm_opts.fork_block_number = Some(block_num.as_u64().clone());
 
         let (env, _block) = evm_opts
-            .fork_evm_env(mainnet_blast_url.clone())
+            .fork_evm_env(mainnet_url.clone())
             .await
             .unwrap();
 
@@ -238,7 +220,7 @@ mod tests {
         drop(inner_account);
 
         forked_db
-            .reset(Some(mainnet_blast_url.clone()), block_num - U64::from(1))
+            .reset(Some(mainnet_url.clone().to_string()), block_num - U64::from(1))
             .unwrap();
         let cleared_account = forked_db.inner().accounts();
         // test reset
