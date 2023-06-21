@@ -8,7 +8,7 @@ use ethers::{
 };
 use eyre::Result;
 use qilin_cfmms::bindings::weth::weth_contract;
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 abigen!(
     Sandwicher,
@@ -16,6 +16,7 @@ abigen!(
     event_derives(serde::Deserialize, serde::Serialize)
 );
 
+/// Deploy the Sandwicher.sol contract for test
 pub(crate) async fn deploy_contract_to_anvil<M, S>(
     client: Arc<SignerMiddleware<Arc<M>, S>>,
 ) -> Result<Sandwicher<SignerMiddleware<Arc<M>, S>>>
@@ -86,6 +87,7 @@ mod tests {
     use std::sync::Arc;
 
     #[tokio::test]
+    #[ignore]
     async fn test_deploy_contract() -> Result<()> {
         let anvil = Anvil::new()
             .chain_id(1 as u64)

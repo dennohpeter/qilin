@@ -70,15 +70,14 @@ pub async fn setup() -> Result<
 
     match matches.get_one::<String>("NETWORK_NAME") {
         Some(network) if network == "mainnet" => {
-            let _blast_key = env::var("BLAST_API_KEY").unwrap_or_else(|e| {
+            let mainnet_url = env::var("WSS_RPC").unwrap_or_else(|e| {
                 log::error!("Error: {}", e);
                 return e.to_string();
             });
 
-            let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
 
             let result =
-                connect_to_network(&mainnet_blast_url, "wss://relay.flashbots.net", 1).await;
+                connect_to_network(&mainnet_url, "wss://relay.flashbots.net", 1).await;
 
             match result {
                 Ok((ws, mw, ci)) => {
@@ -93,13 +92,12 @@ pub async fn setup() -> Result<
         }
         Some(network) if network == "goerli" => {
             log::info!("Running on goerli");
-            let _blast_key_goerli = env::var("BLAST_API_GOERLI").unwrap_or_else(|e| {
+            let goerli_url = env::var("WSS_RPC_GOERLI").unwrap_or_else(|e| {
                 return e.to_string();
             });
-            let goerli_blast_url = format!("wss://eth-goerli.blastapi.io/{}", _blast_key_goerli);
 
             let result =
-                connect_to_network(&goerli_blast_url, "https://relay-goerli.flashbots.net", 5)
+                connect_to_network(&goerli_url, "https://relay-goerli.flashbots.net", 5)
                     .await;
 
             match result {
@@ -119,13 +117,12 @@ pub async fn setup() -> Result<
         }
         None => {
             log::info!("Running on mainnet");
-            let _blast_key = env::var("BLAST_API_KEY").unwrap_or_else(|e| {
+            let mainnet_url = env::var("WSS_RPC").unwrap_or_else(|e| {
                 return e.to_string();
             });
-            let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
 
             let result =
-                connect_to_network(&mainnet_blast_url, "https://relay.flashbots.net", 1).await;
+                connect_to_network(&mainnet_url, "https://relay.flashbots.net", 1).await;
 
             match result {
                 Ok((ws, mw, ci)) => {

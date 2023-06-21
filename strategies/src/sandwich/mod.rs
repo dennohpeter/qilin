@@ -83,16 +83,16 @@ mod tests {
     use ethers::{
         core::utils::{Anvil, AnvilInstance},
         providers::{Middleware, Provider, Ws},
-        types::{Address, Block, BlockId, Transaction, H160, U256, U64},
+        types::{Address, U256},
     };
     use eyre::Result;
     use fork_database;
-    use log;
     use parking_lot::RwLock;
     use qilin_cfmms::pool::{Pool, PoolVariant};
     use serde_json;
     use std::collections::BTreeMap;
     use std::fs;
+    use utils::contract_deployer::deploy_contract_to_anvil;
 
     /// Setup anvil test environment
     async fn setup() -> Result<(RustySandoStrategy<Provider<Ws>>, AnvilInstance)> {
@@ -136,6 +136,9 @@ mod tests {
         let wallet: LocalWallet = anvil.keys()[0].clone().into();
         let client = Arc::new(SignerMiddleware::new(provider.clone(), wallet.clone()));
 
+        // load the sandwich contract
+        let contract = deploy_contract_to_anvil(client.clone()).await?;
+
         // initialize rusty sando strategy
         let rusty = RustySandoStrategy::new(
             block_num,
@@ -143,7 +146,7 @@ mod tests {
             Arc::new(RwLock::new(all_pools)),
             Arc::new(fork_db),
             true,
-            None, //todo
+            Some(contract.address()), 
         )
         .await?;
 
