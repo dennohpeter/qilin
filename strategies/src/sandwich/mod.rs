@@ -3,7 +3,7 @@ pub mod state;
 pub mod utils;
 
 use async_trait::async_trait;
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use crate::types::{Action, Event};
 use artemis::types::Strategy;
@@ -14,7 +14,9 @@ use qilin_cfmms::pool::Pool;
 use crate::sandwich::state::BotState;
 
 use ethers::{
-    providers::{JsonRpcClient, Middleware, Provider, PubsubClient, Ws},
+    middleware::SignerMiddleware,
+    providers::{Http, JsonRpcClient, Middleware, Provider, PubsubClient, Ws},
+    signers::{LocalWallet, Signer, Wallet},
     types::{Address, Block, BlockId, Transaction, H160, H256, U64},
 };
 use eyre::Result;
@@ -92,7 +94,7 @@ mod tests {
     use std::collections::BTreeMap;
     use std::fs;
 
-    /// Setup test environment
+    /// Setup anvil test environment
     async fn setup() -> Result<(RustySandoStrategy<Provider<Ws>>, AnvilInstance)> {
         // setup anvil instance for testing
         // note: spawn() will panic if spawn is called without anvil being available in the user’s $PATH
@@ -100,6 +102,7 @@ mod tests {
             .fork("https://eth.llamarpc.com")
             .fork_block_number(17508706 as u64)
             .spawn();
+
         let url = anvil.ws_endpoint().to_string();
         let provider = Arc::new(
             Provider::<Ws>::connect(url)
@@ -129,6 +132,10 @@ mod tests {
         // setup fork database
         let fork_db = fork_database::setup_fork_db().await;
 
+        // setup wallet and client for sandwich contract deployment
+        let wallet: LocalWallet = anvil.keys()[0].clone().into();
+        let client = Arc::new(SignerMiddleware::new(provider.clone(), wallet.clone()));
+
         // initialize rusty sando strategy
         let rusty = RustySandoStrategy::new(
             block_num,
@@ -136,7 +143,7 @@ mod tests {
             Arc::new(RwLock::new(all_pools)),
             Arc::new(fork_db),
             true,
-            None,
+            None, //todo
         )
         .await?;
 

@@ -514,8 +514,8 @@
       }
     },
     "src/Sandwicher.sol": {
-      "lastModificationDate": 1687227096354,
-      "contentHash": "8c1449b186fdfbdb5c7f1450e51b3727",
+      "lastModificationDate": 1687302123916,
+      "contentHash": "8ab11781e81bf29108b73d825cb375d9",
       "sourceName": "src/Sandwicher.sol",
       "solcConfig": {
         "settings": {
@@ -551,8 +551,8 @@
       ],
       "versionRequirement": ">=0.8.15",
       "artifacts": {
-        "Sandwich": {
-          "0.8.15+commit.e14f2714.Linux.gcc": "Sandwicher.sol/Sandwich.json"
+        "Sandwicher": {
+          "0.8.15+commit.e14f2714.Linux.gcc": "Sandwicher.sol/Sandwicher.json"
         }
       }
     },

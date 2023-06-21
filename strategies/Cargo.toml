@@ -22,6 +22,7 @@ dashmap = { workspace = true }
 hashbrown = { workspace = true }
 async-trait = { workspace = true }
 serde_json = { workspace = true }
+ethers-flashbots = { workspace = true }
 
 qilin_cfmms = { path = "../cfmms" }
 fork_database = { path = "../fork-database" }

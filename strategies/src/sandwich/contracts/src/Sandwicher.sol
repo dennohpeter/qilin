@@ -9,7 +9,7 @@ contract Sandwicher {
     using SafeTransfer for IERC20;
 
     // Authorized
-    address internal immutable user;
+    address internal user;
 
     // transfer(address,uint256)
     bytes4 internal constant ERC20_TRANSFER_ID = 0xa9059cbb;
@@ -26,7 +26,7 @@ contract Sandwicher {
 
     // *** Receive profits from contract *** //
     function recoverERC20(address token) public {
-        require(msg.sender == user, "shoo");
+        require(msg.sender == user, "wrong user");
         IERC20(token).safeTransfer(
             msg.sender,
             IERC20(token).balanceOf(address(this))
@@ -53,7 +53,7 @@ contract Sandwicher {
         address memUser = user;
 
         assembly {
-            // You can only access teh fallback function if you're authorized
+            // You can only access the fallback function if you're authorized
             if iszero(eq(caller(), memUser)) {
                 // Ohm (3, 3) makes your code more efficient
                 // WGMI
