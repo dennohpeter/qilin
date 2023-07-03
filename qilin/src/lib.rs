@@ -3,33 +3,16 @@ pub mod init;
 pub mod utils;
 
 use anyhow::Result;
-use dashmap::DashMap;
+
 use env_logger::Env;
-use ethers::{
-    core::types::{Block, U256},
-    prelude::*,
-    providers::{Middleware, Provider, Ws},
-};
-use parking_lot::RwLock;
-use qilin_cfmms::{
-    dex,
-    pool::{Pool, PoolVariant},
-};
-use std::env;
+use ethers::{core::types::Block, prelude::*, providers::Middleware};
 
-use std::sync::{Arc, Mutex};
-
-use artemis::{engine::Engine, types::Collector};
-use collectors::{
-    block_collector::QilinBlockCollector,
-    mempool_collector::QilinMempoolCollector,
-    types::{BlockPayload, NewTx},
-};
+use collectors::mempool_collector::QilinMempoolCollector;
 
 pub async fn runner() -> Result<()> {
     env_logger::Builder::from_env(Env::default()).init();
 
-    let (flashbot_client, all_pools, hash_addr_pools) = init::setup().await?;
+    let (flashbot_client, _all_pools, _hash_addr_pools) = init::setup().await?;
     let ws_provider = flashbot_client.inner().inner().clone();
     let initial_block_num = ws_provider
         .get_block_number()
@@ -43,7 +26,7 @@ pub async fn runner() -> Result<()> {
 
     // let engine = Engine::<Event, Action>::default();
 
-    let mempool_collector = QilinMempoolCollector::new(ws_provider.clone(), initial_block.clone());
+    let _mempool_collector = QilinMempoolCollector::new(ws_provider.clone(), initial_block.clone());
     // let block_collector: Box<dyn Collector<BlockPayload>> = QilinBlockCollector::new(
     //     ws_provider.clone(),
     //     all_pools.clone(),

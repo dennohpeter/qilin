@@ -7,7 +7,7 @@ use cfmms::pool::uniswap_v3::UniswapV3Pool;
 use ethers::providers::{Provider, Ws};
 use ethers::types::{I256, U256};
 use std::sync::Arc;
-use uniswap_v3_math::{tick_math};
+use uniswap_v3_math::tick_math;
 
 pub const MIN_SQRT_RATIO: U256 = U256([4295128739, 0, 0, 0]);
 pub const MAX_SQRT_RATIO: U256 = U256([6743328256752651558, 17280870778742802505, 4294805859, 0]);

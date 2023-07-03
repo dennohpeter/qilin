@@ -5,7 +5,7 @@ use argmin::core::observers::{ObserverMode, SlogLogger};
 use argmin::core::{CostFunction, Error, Executor};
 use argmin::solver::brent::BrentOpt;
 use ethers::providers::{Provider, Ws};
-use ethers::types::{U256, I256};
+use ethers::types::{I256, U256};
 use qilin_cfmms::batch_requests::uniswap_v3::UniswapV3TickData;
 use qilin_cfmms::pool::{Pool, PoolType};
 use std::sync::Arc;

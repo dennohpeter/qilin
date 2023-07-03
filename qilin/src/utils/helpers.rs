@@ -4,7 +4,7 @@ use ethers::core::types::Bytes;
 use ethers::providers::Provider;
 use ethers::providers::Ws;
 use hex;
-use log;
+
 use std::error::Error;
 use std::sync::Arc;
 use url::Url;

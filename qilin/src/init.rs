@@ -1,4 +1,4 @@
-use crate::utils::constants::{UNISWAP_V2_FACTORY, UNISWAP_V3_FACTORY, WETH_ADDRESS};
+use crate::utils::constants::{UNISWAP_V2_FACTORY, UNISWAP_V3_FACTORY};
 use crate::utils::{
     helpers::{connect_to_network, generate_abigen},
     serialization::{read_pool_data, write_pool_data},
@@ -11,7 +11,7 @@ use ethers::{
     prelude::*,
     providers::{Middleware, Provider, Ws},
     signers::LocalWallet,
-    types::{H160, U256},
+    types::H160,
 };
 use ethers_flashbots::FlashbotsMiddleware;
 use log;
@@ -22,9 +22,9 @@ use qilin_cfmms::{
     pool::{Pool, PoolVariant},
 };
 use std::collections::hash_map::DefaultHasher;
+use std::env;
 use std::hash::{Hash, Hasher};
-use std::sync::{Arc, Mutex};
-use std::{env, str::FromStr};
+use std::sync::Arc;
 use thiserror::Error;
 use url::Url;
 
