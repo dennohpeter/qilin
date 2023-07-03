@@ -514,8 +514,8 @@
       }
     },
     "src/Sandwicher.sol": {
-      "lastModificationDate": 1687302123916,
-      "contentHash": "8ab11781e81bf29108b73d825cb375d9",
+      "lastModificationDate": 1687306569953,
+      "contentHash": "99427cc4399ede11d4ed21342e843def",
       "sourceName": "src/Sandwicher.sol",
       "solcConfig": {
         "settings": {
@@ -553,6 +553,215 @@
       "artifacts": {
         "Sandwicher": {
           "0.8.15+commit.e14f2714.Linux.gcc": "Sandwicher.sol/Sandwicher.json"
+        }
+      }
+    },
+    "src/lib/IAggregator.sol": {
+      "lastModificationDate": 1687561518964,
+      "contentHash": "70c22a1f7e8ee0bd97fcabb493c4fca6",
+      "sourceName": "src/lib/IAggregator.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "paris",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "src/lib/UserOperation.sol"
+      ],
+      "versionRequirement": "^0.8.12",
+      "artifacts": {
+        "IAggregator": {
+          "0.8.15+commit.e14f2714.Linux.gcc": "IAggregator.sol/IAggregator.json"
+        }
+      }
+    },
+    "src/lib/IEntryPoint.sol": {
+      "lastModificationDate": 1687561488291,
+      "contentHash": "f88a97ac988a378551551be9ea4ee65e",
+      "sourceName": "src/lib/IEntryPoint.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "paris",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "src/lib/IAggregator.sol",
+        "src/lib/INonceManager.sol",
+        "src/lib/IStakeManager.sol",
+        "src/lib/UserOperation.sol"
+      ],
+      "versionRequirement": "^0.8.12",
+      "artifacts": {
+        "IEntryPoint": {
+          "0.8.15+commit.e14f2714.Linux.gcc": "IEntryPoint.sol/IEntryPoint.json"
+        }
+      }
+    },
+    "src/lib/INonceManager.sol": {
+      "lastModificationDate": 1687561535835,
+      "contentHash": "58293337a68c401ac395a955ab972702",
+      "sourceName": "src/lib/INonceManager.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "paris",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "^0.8.12",
+      "artifacts": {
+        "INonceManager": {
+          "0.8.15+commit.e14f2714.Linux.gcc": "INonceManager.sol/INonceManager.json"
+        }
+      }
+    },
+    "src/lib/IPaymaster.sol": {
+      "lastModificationDate": 1687561547098,
+      "contentHash": "4737c1fae42666f1b91fdac6a612076b",
+      "sourceName": "src/lib/IPaymaster.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "paris",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "src/lib/UserOperation.sol"
+      ],
+      "versionRequirement": "^0.8.12",
+      "artifacts": {
+        "IPaymaster": {
+          "0.8.15+commit.e14f2714.Linux.gcc": "IPaymaster.sol/IPaymaster.json"
+        }
+      }
+    },
+    "src/lib/IStakeManager.sol": {
+      "lastModificationDate": 1687561558403,
+      "contentHash": "e5c534a14fbf384a02ed5f007d54b1f0",
+      "sourceName": "src/lib/IStakeManager.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "paris",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "^0.8.12",
+      "artifacts": {
+        "IStakeManager": {
+          "0.8.15+commit.e14f2714.Linux.gcc": "IStakeManager.sol/IStakeManager.json"
         }
       }
     },
@@ -635,6 +844,46 @@
       "artifacts": {
         "SafeTransfer": {
           "0.8.15+commit.e14f2714.Linux.gcc": "SafeTransfer.sol/SafeTransfer.json"
+        }
+      }
+    },
+    "src/lib/UserOperation.sol": {
+      "lastModificationDate": 1687561615911,
+      "contentHash": "11678e687ae563323350696e16cfd34e",
+      "sourceName": "src/lib/UserOperation.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "paris",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "^0.8.12",
+      "artifacts": {
+        "UserOperationLib": {
+          "0.8.15+commit.e14f2714.Linux.gcc": "UserOperation.sol/UserOperationLib.json"
         }
       }
     }

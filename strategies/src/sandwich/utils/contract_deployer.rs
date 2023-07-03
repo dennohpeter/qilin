@@ -32,14 +32,12 @@ where
         Ok(contract) => contract,
         Err(e) => return Err(eyre::eyre!("Error deploying contract: {}", e)),
     };
-    println!("Deployed contract ss: {}", contract.address());
 
     // load weth contract
     let weth_instance = weth_contract::weth::new(
         "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse::<H160>()?,
         client.clone(),
     );
-    println!("Deployed contract weth: {}", weth_instance.address());
 
     let value = U256::from(parse_units("1000.0", "ether").unwrap());
 
@@ -51,7 +49,6 @@ where
         .await?
         .await?
         .expect("deposit failed");
-    println!("Deposit weth success");
 
     // approve
     let _ = weth_instance
@@ -68,8 +65,6 @@ where
         .send()
         .await?
         .await?;
-
-    println!("Deployed contract to address: {}", contract.address());
 
     let contract = Sandwicher::new(contract.address(), client.clone());
 

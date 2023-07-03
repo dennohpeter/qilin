@@ -10,7 +10,6 @@ use artemis::types::Strategy;
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use qilin_cfmms::pool::Pool;
-
 use crate::sandwich::state::BotState;
 
 use ethers::{
@@ -33,7 +32,7 @@ pub struct RustySandoStrategy<M, S> {
     pub inception_block: U64,
     pub sandwich_state: Arc<BotState>,
     pub all_pools: AllPools,
-    pub fork_db: Arc<ForkedDatabase>,
+    pub fork_db: Arc<RwLock<ForkedDatabase>>,
     // TODO: add bundle sender
 }
 
@@ -62,7 +61,7 @@ where
         provider: Arc<M>,
         wallet: Arc<SignerMiddleware<Arc<M>, S>>,
         all_pools: AllPools,
-        fork_db: Arc<ForkedDatabase>,
+        fork_db: Arc<RwLock<ForkedDatabase>>,
         test: bool,
         sandwich_address: Option<Address>,
     ) -> Result<Self> {
@@ -99,16 +98,34 @@ mod tests {
     use std::fs;
     use utils::contract_deployer::deploy_contract_to_anvil;
     use collectors::types::NewTx;
-    use super::utils::state_diff::get_from_txs;
+    use super::utils::state_diff::{
+        get_from_txs,
+        extract_pools,
+        to_cache_db
+    };
+    use dotenv::dotenv;
+    use log;
+    use env_logger::Env;
+    use env_logger;
+    use hex;
+    use std::env;
+    use std::str::FromStr;
 
-    const INIT_BLOCK: u64 = 13733864 as u64; 
+    const INIT_BLOCK: u64 = 17444939 as u64; 
 
     /// Setup anvil test environment
     async fn setup() -> Result<(RustySandoStrategy<Provider<Ws>, Wallet<SigningKey>>, AnvilInstance)> {
+
+        dotenv().ok();
+        let mainnet_http_url = env::var("HTTP_RPC").unwrap_or_else(|e| {
+                log::error!("Error: {}", e);
+                return e.to_string();
+        });
+
         // setup anvil instance for testing
         // note: spawn() will panic if spawn is called without anvil being available in the user’s $PATH
         let anvil = Anvil::new()
-            .fork("https://eth.llamarpc.com")
+            .fork(mainnet_http_url.clone())
             .fork_block_number(INIT_BLOCK)
             .spawn();
 
@@ -141,8 +158,7 @@ mod tests {
         // setup fork database
         let fork_db = fork_database::setup_fork_db(
             provider.clone(),
-            "https://eth.llamarpc.com".to_string(),
-            "wss://eth.llamarpc.com".to_string(),
+            mainnet_http_url.to_string(),
         ).await;
 
         // setup wallet and client for sandwich contract deployment
@@ -151,7 +167,7 @@ mod tests {
 
         // load the sandwich contract
         let contract = deploy_contract_to_anvil(client.clone()).await?;
-        println!("Deployed contract to address: {}", contract.address());
+        log::info!("Deployed contract to address: {}", contract.address());
 
         // initialize rusty sando strategy
         let rusty = RustySandoStrategy::new(
@@ -159,7 +175,7 @@ mod tests {
             provider.clone(),
             client.clone(),
             Arc::new(RwLock::new(all_pools)),
-            Arc::new(fork_db),
+            Arc::new(RwLock::new(fork_db)),
             true,
             Some(contract.address()), 
         )
@@ -168,31 +184,48 @@ mod tests {
         Ok((rusty, anvil))
     }
 
+
+
     #[tokio::test]
     async fn test_rusty_sando_strategy() -> Result<()> {
-        let (rusty, anvil) = setup().await?;
 
-        // create the simulate mempool tx
-        let mut simulated_mempool_tx = NewTx::default().tx;
+        env_logger::Builder::from_env(Env::default().default_filter_or("info,error,warn")).init();
 
-        // https://etherscan.io/tx/0x34d66ff483426f41b245881a92ce450579742e29aa85f256b752ed2403e5c8d1
-        let bytes: &mut [u8] = &mut "0x34d66ff483426f41b245881a92ce450579742e29aa85f256b752ed2403e5c8d1".as_bytes().to_vec();
-        let bytes_array: [u8; 32] = [0; 32];
-        for (&x, p) in bytes_array.iter().zip(bytes.iter_mut()) {
-            *p = x;
-        };
-        simulated_mempool_tx.hash = H256::from(bytes_array);
-        println!("simulated mempool tx: {:?}", simulated_mempool_tx);
+        let (rusty, _) = setup().await?;
+
+        dotenv().ok();
+        let mainnet_url = env::var("WSS_RPC").unwrap_or_else(|e| {
+                log::error!("Error: {}", e);
+                return e.to_string();
+        });
+
+        let temp_provider = Arc::new(Provider::<Ws>::connect(mainnet_url).await.unwrap());
+
+        // https://etherscan.io/tx/0xa2360f3cbd253bd3e80c25220576277a6b7f8e39e39199e1a82ca09c42667645
+        let s = "0xa2360f3cbd253bd3e80c25220576277a6b7f8e39e39199e1a82ca09c42667645";
+        let simulated_mempool_tx = temp_provider.get_transaction(H256::from_str(s).unwrap()).await.unwrap().unwrap();
+        println!("Simulated Mempool Tx: {:?}", simulated_mempool_tx);
 
         let res = get_from_txs(
-            &rusty.provider.clone(),
+            &temp_provider,
             &vec![simulated_mempool_tx.clone()],
             BlockNumber::Number(INIT_BLOCK.into()),
         ).await.unwrap();
-        println!("res: {:?}", res);
 
+        let sandwitch_pools = extract_pools(&res, &rusty.all_pools.clone().read()).unwrap();
 
+        assert_eq!(sandwitch_pools.len(), 1);
+        // Uniswap V3 USDC 3 Pool Address: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640
+        assert_eq!(sandwitch_pools[0].pool.address, Address::from_str("0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640").unwrap());
 
+        let temp_provider_clone = temp_provider.clone();
+        let rusty_fork_db_clone = rusty.fork_db.clone();
+        let cache_db = to_cache_db(
+            &res,
+            None,
+            &temp_provider_clone,
+            &rusty_fork_db_clone,
+        ).await.unwrap(); 
 
 
         Ok(())
