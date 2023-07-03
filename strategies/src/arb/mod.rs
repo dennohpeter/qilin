@@ -4,8 +4,8 @@ pub mod v3;
 use argmin::core::observers::{ObserverMode, SlogLogger};
 use argmin::core::{CostFunction, Error, Executor};
 use argmin::solver::brent::BrentOpt;
-use ethers::providers::{Middleware, Provider, Ws};
-use ethers::types::{H160, U256};
+use ethers::providers::{Provider, Ws};
+use ethers::types::{U256};
 use qilin_cfmms::batch_requests::uniswap_v3::UniswapV3TickData;
 use qilin_cfmms::pool::{Pool, PoolType};
 use std::sync::Arc;
@@ -193,8 +193,6 @@ impl ArbPool {
             }
             false => {
                 _solver = BrentOpt::new(
-                    //     0.001 as f64 * cost.borrowing_pool_reserve_1,
-                    //     0.005 as f64 * cost.borrowing_pool_reserve_1,
                     1 as f64,
                     cost.borrowing_pool_reserve_1,
                 );
@@ -220,7 +218,6 @@ impl CostFunction for ArbPool {
     type Output = f64;
 
     fn cost(&self, p: &Self::Param) -> Result<Self::Output, Error> {
-        // added minus to maximize profit
         Ok(maximize_arb_profit(
             &p,
             &self.borrowing_pool_reserve_0,
@@ -373,15 +370,35 @@ fn maximize_arb_profit(
         },
     };
 
-    return -(_repay - _debt);
+    return -(_debt - _repay);
 }
 
-pub fn u256_2_f64(u256: U256) -> f64 {
-    u256.as_u128() as f64
+pub fn u256_2_f64(value: U256) -> f64 {
+        let integer_part_high = (value >> 64).as_u64();
+    let integer_part_low = (value & U256::from(u64::MAX)).as_u64();
+
+    let integer_part = (integer_part_high as u128) << 64 | integer_part_low as u128;
+    let decimal_part = (value & U256::from(u64::MAX)).as_u128() as f64 / u128::MAX as f64;
+
+    let result = integer_part as f64 + decimal_part;
+    result
+
 }
 
-pub fn f64_2_u256(f64: f64) -> U256 {
-    U256::from(f64 as u128)
+pub fn f64_2_u256(value: f64) -> U256 {
+ 
+     let decimal_part = value.fract();
+    let integer_part = value - decimal_part;
+
+    let decimal_part_u128 = (decimal_part * u128::MAX as f64) as u128;
+    let integer_part_u128 = integer_part as u128;
+
+    let integer_part_high = (integer_part_u128 >> 64) as u64;
+    let integer_part_low = (integer_part_u128 & u64::MAX as u128) as u64;
+
+    let result = U256::from(integer_part_high) << 64 | U256::from(integer_part_low);
+    result | U256::from(decimal_part_u128)
+
 }
 
 pub fn q64_2_f64(x: u128) -> f64 {
@@ -401,6 +418,7 @@ mod test {
         providers::{Provider, Ws},
     };
     use qilin_cfmms::pool::{Pool, PoolType, PoolVariant};
+    use env_logger::Env;
 
     pub const USDC_ADDRESS: &str = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
     pub const WETH_ADDRESS: &str = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
@@ -409,11 +427,14 @@ mod test {
 
     #[tokio::test]
     async fn test_calc_optimal_arb() {
+        env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
         dotenv().ok();
-        let _blast_key = env::var("BLAST_API_KEY").unwrap();
-        let mainnet_blast_url = format!("wss://eth-mainnet.blastapi.io/{}", _blast_key);
+        let mainnet_url = env::var("WSS_RPC").unwrap_or_else(|e| {
+            log::error!("Error: {}", e);
+            return e.to_string();
+        });
         let provider = Arc::new(
-            Provider::<Ws>::connect(mainnet_blast_url.as_str())
+            Provider::<Ws>::connect(mainnet_url.as_str())
                 .await
                 .unwrap(),
         );
@@ -449,6 +470,8 @@ mod test {
             }
             _ => {}
         }
+        log::info!("Optimal Borrowing Amount: {}", amt as u128);
+        log::info!("Token0 Reserve: {}", token0_reserve as f64 * 0.005);
 
         assert!(amt < token0_reserve as f64 * 0.005);
     }

@@ -2,21 +2,21 @@ pub mod abi;
 pub mod state;
 pub mod utils;
 
-use async_trait::async_trait;
-use std::{sync::Arc, time::Duration};
+
+use std::{sync::Arc};
 
 use crate::sandwich::state::BotState;
-use crate::types::{Action, Event};
-use artemis::types::Strategy;
+
+
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use qilin_cfmms::pool::Pool;
 
 use ethers::{
     middleware::SignerMiddleware,
-    providers::{Http, JsonRpcClient, Middleware, Provider, PubsubClient, Ws},
-    signers::{LocalWallet, Signer, Wallet},
-    types::{Address, Block, BlockId, Transaction, H160, H256, U64},
+    providers::{JsonRpcClient, Middleware, PubsubClient},
+    signers::Signer,
+    types::{Address, U64},
 };
 use eyre::Result;
 use fork_database::forked_db::ForkedDatabase;
@@ -83,19 +83,21 @@ where
 mod tests {
     use super::utils::state_diff::{extract_pools, get_from_txs, to_cache_db};
     use super::*;
-    use crate::types::{Action, Event};
+    
     use dotenv::dotenv;
     use env_logger;
     use env_logger::Env;
     use ethers::{
         core::k256::ecdsa::SigningKey,
-        core::utils::{Anvil, AnvilInstance},
+        prelude::LocalWallet,
+        core::utils::{Anvil},
         providers::{Middleware, Provider, Ws},
         types::{Address, BlockNumber, H256, U256},
+        signers::Wallet,
     };
     use eyre::Result;
     use fork_database;
-    use hex;
+    
     use log;
     use parking_lot::RwLock;
     use qilin_cfmms::pool::{Pool, PoolVariant};
@@ -110,7 +112,7 @@ mod tests {
 
     /// Setup anvil test environment
     async fn setup() -> Result<RustySandoStrategy<Provider<Ws>, Wallet<SigningKey>>> {
-        env_logger::Builder::from_env(Env::default().default_filter_or("info,error,warn")).init();
+        env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
         dotenv().ok();
         let mainnet_http_url = env::var("HTTP_RPC").unwrap_or_else(|e| {
@@ -218,9 +220,15 @@ mod tests {
 
         let temp_provider_clone = temp_provider.clone();
         let rusty_fork_db_clone = rusty.fork_db.clone();
-        let cache_db = to_cache_db(&res, None, &temp_provider_clone, &rusty_fork_db_clone)
+        let _cache_db = to_cache_db(&res, None, &temp_provider_clone, &rusty_fork_db_clone)
             .await
             .unwrap();
+
+        for pool in sandwitch_pools {
+            let _pool = pool.pool;
+            // let pool_clone = pool.clone();
+            // TODO: add sandwich simulation
+        }
 
         Ok(())
     }

@@ -7,7 +7,7 @@ use cfmms::pool::uniswap_v3::UniswapV3Pool;
 use ethers::providers::{Provider, Ws};
 use ethers::types::{I256, U256};
 use std::sync::Arc;
-use uniswap_v3_math::{liquidity_math, tick_math};
+use uniswap_v3_math::{tick_math};
 
 pub const MIN_SQRT_RATIO: U256 = U256([4295128739, 0, 0, 0]);
 pub const MAX_SQRT_RATIO: U256 = U256([6743328256752651558, 17280870778742802505, 4294805859, 0]);
@@ -288,7 +288,7 @@ pub fn swap(
         step.sqrt_price_next_x96 =
             match uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(step.tick_next) {
                 Ok(val) => val,
-                Err(e) => return Err(UniswapV3MathError::TickDataError),
+                Err(_e) => return Err(UniswapV3MathError::TickDataError),
             };
 
         match uniswap_v3_math::swap_math::compute_swap_step(
@@ -360,7 +360,7 @@ pub fn swap(
         } else if state.sqrt_price_x96 != step.sqrt_price_start_x96 {
             state.tick = match tick_math::get_tick_at_sqrt_ratio(state.sqrt_price_x96) {
                 Ok(val) => val,
-                Err(e) => return Err(UniswapV3MathError::TickDataError),
+                Err(_e) => return Err(UniswapV3MathError::TickDataError),
             };
         };
     }

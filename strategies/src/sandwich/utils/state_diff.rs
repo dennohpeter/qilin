@@ -7,7 +7,6 @@ use log;
 use parking_lot::RwLock;
 use qilin_cfmms::pool::Pool;
 use revm::{
-    db::{CacheDB, EmptyDB},
     primitives::{AccountInfo, Bytecode},
 };
 use std::{

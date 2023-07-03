@@ -16,6 +16,7 @@ abigen!(
     event_derives(serde::Deserialize, serde::Serialize)
 );
 
+#[allow(dead_code)]
 /// Deploy the Sandwicher.sol contract for test
 pub(crate) async fn deploy_contract_to_anvil<M, S>(
     client: Arc<SignerMiddleware<Arc<M>, S>>,
