@@ -9,7 +9,7 @@ pub mod utils;
 use crate::blockchain_db::{BlockchainDb, BlockchainDbMeta};
 use crate::forked_db::ForkedDatabase;
 use crate::shared_backend::SharedBackend;
-use ethers::providers::{Http, Middleware, Provider, Ws};
+use ethers::providers::{Middleware, Provider, Ws};
 use foundry_config::Config;
 use foundry_evm::executor::opts::EvmOpts;
 use std::{collections::BTreeSet, sync::Arc};
@@ -18,7 +18,6 @@ use std::{collections::BTreeSet, sync::Arc};
 pub async fn setup_fork_db(
     provider: Arc<Provider<Ws>>,
     http_url: String,
-    ws_url: String,
 ) -> ForkedDatabase {
 
     let block_num = provider.get_block_number().await.unwrap();
@@ -35,7 +34,7 @@ pub async fn setup_fork_db(
     let meta = BlockchainDbMeta {
         cfg_env: env.cfg,
         block_env: env.block,
-        hosts: BTreeSet::from([ws_url.clone()]),
+        hosts: BTreeSet::from([http_url.clone()]),
     };
 
     let db = BlockchainDb::new(meta, None);
@@ -220,7 +219,7 @@ mod tests {
         drop(inner_account);
 
         forked_db
-            .reset(Some(mainnet_url.clone().to_string()), block_num - U64::from(1))
+            .reset(block_num - U64::from(1))
             .unwrap();
         let cleared_account = forked_db.inner().accounts();
         // test reset

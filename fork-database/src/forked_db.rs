@@ -68,7 +68,6 @@ impl ForkedDatabase {
     /// Reset the fork to a fresh forked state, and optionally update the fork config
     pub fn reset(
         &mut self,
-        _url: Option<String>,
         block_number: impl Into<BlockId>,
     ) -> Result<(), String> {
         self.backend
