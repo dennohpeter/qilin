@@ -6,9 +6,7 @@ use futures::stream::FuturesUnordered;
 use log;
 use parking_lot::RwLock;
 use qilin_cfmms::pool::Pool;
-use revm::{
-    primitives::{AccountInfo, Bytecode},
-};
+use revm::primitives::{AccountInfo, Bytecode};
 use std::{
     collections::{btree_map::Entry, BTreeMap},
     sync::Arc,

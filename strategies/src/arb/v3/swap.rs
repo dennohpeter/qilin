@@ -208,18 +208,19 @@ pub fn get_tokens_out_from_tokens_in(
 }
 
 // function assumes getting exact amount out
+#[allow(unused_assignments)]
 pub fn swap(
     amount_in: f64,
     tick: &i32,
     sqrt_price_x96: &U256,
     liquidity: &u128,
     tick_data: &Vec<UniswapV3TickData>,
-    liquidity_net: i128,
+    mut liquidity_net: i128,
     zero_for_one: &bool,
     fee: &u32,
 ) -> Result<(f64, f64, U256, u128, i32), UniswapV3MathError> {
     let mut tick_data_iter = tick_data.iter();
-    let mut liquidity_net = liquidity_net.clone();
+    // let mut liquidity_net = liquidity_net.clone();
 
     let mut state = CurrentState {
         // type case f64 to i128 for I256 convertion

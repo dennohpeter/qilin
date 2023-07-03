@@ -2,11 +2,9 @@ pub mod abi;
 pub mod state;
 pub mod utils;
 
-
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use crate::sandwich::state::BotState;
-
 
 use dashmap::DashMap;
 use parking_lot::RwLock;
@@ -83,21 +81,21 @@ where
 mod tests {
     use super::utils::state_diff::{extract_pools, get_from_txs, to_cache_db};
     use super::*;
-    
+
     use dotenv::dotenv;
     use env_logger;
     use env_logger::Env;
     use ethers::{
         core::k256::ecdsa::SigningKey,
+        core::utils::Anvil,
         prelude::LocalWallet,
-        core::utils::{Anvil},
         providers::{Middleware, Provider, Ws},
-        types::{Address, BlockNumber, H256, U256},
         signers::Wallet,
+        types::{Address, BlockNumber, H256, U256},
     };
     use eyre::Result;
     use fork_database;
-    
+
     use log;
     use parking_lot::RwLock;
     use qilin_cfmms::pool::{Pool, PoolVariant};

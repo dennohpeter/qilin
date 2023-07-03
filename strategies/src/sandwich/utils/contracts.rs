@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::sandwich::abi::{Erc20, UniswapV2Pair};
-use ethers::{prelude::*};
+use ethers::prelude::*;
 
 /// Create erc20 contract that we can interact with
 pub fn get_erc20_contract<M>(erc20_address: &Address, client: &Arc<M>) -> Erc20<M>

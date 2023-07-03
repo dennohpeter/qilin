@@ -5,7 +5,7 @@ use argmin::core::observers::{ObserverMode, SlogLogger};
 use argmin::core::{CostFunction, Error, Executor};
 use argmin::solver::brent::BrentOpt;
 use ethers::providers::{Provider, Ws};
-use ethers::types::{U256};
+use ethers::types::{U256, I256};
 use qilin_cfmms::batch_requests::uniswap_v3::UniswapV3TickData;
 use qilin_cfmms::pool::{Pool, PoolType};
 use std::sync::Arc;
@@ -192,10 +192,7 @@ impl ArbPool {
                 _solver = BrentOpt::new(1 as f64, cost.borrowing_pool_reserve_0);
             }
             false => {
-                _solver = BrentOpt::new(
-                    1 as f64,
-                    cost.borrowing_pool_reserve_1,
-                );
+                _solver = BrentOpt::new(1 as f64, cost.borrowing_pool_reserve_1);
             }
         }
 
@@ -373,8 +370,9 @@ fn maximize_arb_profit(
     return -(_debt - _repay);
 }
 
-pub fn u256_2_f64(value: U256) -> f64 {
-        let integer_part_high = (value >> 64).as_u64();
+#[allow(dead_code)]
+pub(crate) fn u256_2_f64(value: U256) -> f64 {
+    let integer_part_high = (value >> 64).as_u64();
     let integer_part_low = (value & U256::from(u64::MAX)).as_u64();
 
     let integer_part = (integer_part_high as u128) << 64 | integer_part_low as u128;
@@ -382,12 +380,11 @@ pub fn u256_2_f64(value: U256) -> f64 {
 
     let result = integer_part as f64 + decimal_part;
     result
-
 }
 
-pub fn f64_2_u256(value: f64) -> U256 {
- 
-     let decimal_part = value.fract();
+#[allow(dead_code)]
+pub(crate) fn f64_2_u256(value: f64) -> U256 {
+    let decimal_part = value.fract();
     let integer_part = value - decimal_part;
 
     let decimal_part_u128 = (decimal_part * u128::MAX as f64) as u128;
@@ -398,9 +395,23 @@ pub fn f64_2_u256(value: f64) -> U256 {
 
     let result = U256::from(integer_part_high) << 64 | U256::from(integer_part_low);
     result | U256::from(decimal_part_u128)
-
 }
 
+#[allow(dead_code)]
+pub(crate) fn f64_2_i256(value: f64) -> I256 {
+    let integer_part = value.trunc() as i128;
+    let decimal_part = (value.fract() * (2_f64.powi(128) - 1.0)) as i128;
+    I256::from(integer_part) * I256::from(2).pow(128) + I256::from(decimal_part)
+}
+
+#[allow(dead_code)]
+pub(crate) fn i256_2_f64(value: I256) -> f64 {
+    let integer_part = (value / I256::from(2).pow(128)).as_i128() as f64;
+    let decimal_part = (value % I256::from(2).pow(128)).as_i128() as f64 / (2_f64.powi(128) - 1.0);
+    integer_part + decimal_part
+}
+
+#[allow(dead_code)]
 pub fn q64_2_f64(x: u128) -> f64 {
     let decimals = ((x & 0xFFFFFFFFFFFFFFFF_u128) >> 48) as u32;
     let integers = ((x >> 64) & 0xFFFF) as u32;
@@ -413,12 +424,12 @@ mod test {
 
     use super::*;
     use dotenv::dotenv;
+    use env_logger::Env;
     use ethers::{
         core::types::{H160, U256},
         providers::{Provider, Ws},
     };
     use qilin_cfmms::pool::{Pool, PoolType, PoolVariant};
-    use env_logger::Env;
 
     pub const USDC_ADDRESS: &str = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
     pub const WETH_ADDRESS: &str = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
@@ -433,11 +444,7 @@ mod test {
             log::error!("Error: {}", e);
             return e.to_string();
         });
-        let provider = Arc::new(
-            Provider::<Ws>::connect(mainnet_url.as_str())
-                .await
-                .unwrap(),
-        );
+        let provider = Arc::new(Provider::<Ws>::connect(mainnet_url.as_str()).await.unwrap());
 
         let v2_pool = Pool::new(
             provider.clone(),
@@ -471,7 +478,7 @@ mod test {
             _ => {}
         }
         log::info!("Optimal Borrowing Amount: {}", amt as u128);
-        log::info!("Token0 Reserve: {}", token0_reserve as f64 * 0.005);
+        log::info!("Token0 Reserve: {}", token0_reserve);
 
         assert!(amt < token0_reserve as f64 * 0.005);
     }
