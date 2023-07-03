@@ -1,4 +1,5 @@
 use super::state_diff::{get_from_txs, StateDiffError};
+use crate::types::NewTx;
 use anyhow::Result;
 use artemis::types::{Collector, CollectorStream};
 use async_trait::async_trait;
@@ -14,14 +15,11 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio_stream::StreamExt;
-use crate::types::NewTx;
 
 pub struct QilinMempoolCollector<M> {
     provider: Arc<M>,
     block: RwLock<Block<H256>>,
 }
-
-
 
 impl NewTx {
     pub fn new(tx: Transaction, state_diff: BTreeMap<H160, AccountDiff>) -> Self {

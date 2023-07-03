@@ -5,12 +5,12 @@ use ethers::etherscan::Client;
 use ethers::prelude::Abigen;
 use ethers::prelude::*;
 use ethers::types::H160;
+use log;
 use std::collections::HashMap;
 use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
-use log;
 
 pub async fn generate_abigen(
     client: &Client,

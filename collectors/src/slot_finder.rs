@@ -6,10 +6,10 @@ use ethers::{
     providers::{Middleware, Provider},
     types::H160,
 };
+use log;
 use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
-use log;
 
 /// Given a ERC20 token address and a pool address, find storage slot in the `balanceOf` mapping
 pub async fn slot_finder(
@@ -17,7 +17,6 @@ pub async fn slot_finder(
     token_address: H160,
     pool_address: H160,
 ) -> Option<U256> {
-
     let mut file = File::open("..abi/erc20.json").unwrap();
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();

@@ -75,9 +75,7 @@ pub async fn setup() -> Result<
                 return e.to_string();
             });
 
-
-            let result =
-                connect_to_network(&mainnet_url, "wss://relay.flashbots.net", 1).await;
+            let result = connect_to_network(&mainnet_url, "wss://relay.flashbots.net", 1).await;
 
             match result {
                 Ok((ws, mw, ci)) => {
@@ -97,8 +95,7 @@ pub async fn setup() -> Result<
             });
 
             let result =
-                connect_to_network(&goerli_url, "https://relay-goerli.flashbots.net", 5)
-                    .await;
+                connect_to_network(&goerli_url, "https://relay-goerli.flashbots.net", 5).await;
 
             match result {
                 Ok((ws, mw, ci)) => {
@@ -121,8 +118,7 @@ pub async fn setup() -> Result<
                 return e.to_string();
             });
 
-            let result =
-                connect_to_network(&mainnet_url, "https://relay.flashbots.net", 1).await;
+            let result = connect_to_network(&mainnet_url, "https://relay.flashbots.net", 1).await;
 
             match result {
                 Ok((ws, mw, ci)) => {

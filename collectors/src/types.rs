@@ -1,13 +1,11 @@
 /// Artemis Collectors types implementations
-use ethers::{
-    types::{AccountDiff, Block, Transaction, H160, H256},
-};
+use ethers::types::{AccountDiff, Block, Transaction, H160, H256};
 use qilin_cfmms::pool::Pool;
 
-use parking_lot::RwLock;
 use dashmap::DashMap;
-use std::sync::Arc;
+use parking_lot::RwLock;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 pub(crate) type RwLockMap = RwLock<DashMap<H160, Pool>>;
 

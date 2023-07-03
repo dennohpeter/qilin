@@ -255,7 +255,6 @@ pub fn extract_sandwich_pools(
     Some(tradable_pools)
 }
 
-
 // credit to rusty-sando
 // https://github.com/mouseless-eth/rusty-sando/blob/master/bot/src/utils/state_diff.rs
 //  Turn state_diffs into a new cache_db

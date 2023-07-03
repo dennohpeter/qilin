@@ -14,22 +14,14 @@ use foundry_config::Config;
 use foundry_evm::executor::opts::EvmOpts;
 use std::{collections::BTreeSet, sync::Arc};
 
-/// Setup forked database 
-pub async fn setup_fork_db(
-    provider: Arc<Provider<Ws>>,
-    http_url: String,
-) -> ForkedDatabase {
-
+/// Setup forked database
+pub async fn setup_fork_db(provider: Arc<Provider<Ws>>, http_url: String) -> ForkedDatabase {
     let block_num = provider.get_block_number().await.unwrap();
     let config = Config::figment();
     let mut evm_opts = config.extract::<EvmOpts>().unwrap();
     evm_opts.fork_block_number = Some(block_num.as_u64().clone());
 
-    let (env, _block) = evm_opts
-        .fork_evm_env(http_url.clone())
-        .await
-        .unwrap();
-
+    let (env, _block) = evm_opts.fork_evm_env(http_url.clone()).await.unwrap();
 
     let meta = BlockchainDbMeta {
         cfg_env: env.cfg,
@@ -61,7 +53,6 @@ mod tests {
     use std::{collections::BTreeSet, path::PathBuf, sync::Arc};
 
     async fn setup() -> (Provider<Ws>, String) {
-
         let mainnet_ws_url = "wss://eth.llamarpc.com";
 
         let provider = Provider::<Ws>::connect(mainnet_ws_url.clone())
@@ -158,18 +149,15 @@ mod tests {
         let mainnet_url = "https://eth.llamarpc.com";
 
         // EvmOpts only allows http provider
-        let provider = Provider::<Http>::try_from(mainnet_url.clone())
-            .expect("could not connect to mainnet");
+        let provider =
+            Provider::<Http>::try_from(mainnet_url.clone()).expect("could not connect to mainnet");
 
         let block_num = provider.get_block_number().await.unwrap();
         let config = Config::figment();
         let mut evm_opts = config.extract::<EvmOpts>().unwrap();
         evm_opts.fork_block_number = Some(block_num.as_u64().clone());
 
-        let (env, _block) = evm_opts
-            .fork_evm_env(mainnet_url.clone())
-            .await
-            .unwrap();
+        let (env, _block) = evm_opts.fork_evm_env(mainnet_url.clone()).await.unwrap();
 
         assert_eq!(evm_opts.get_chain_id(), 1 as u64);
 
@@ -218,9 +206,7 @@ mod tests {
         assert!(!account_detail.is_some());
         drop(inner_account);
 
-        forked_db
-            .reset(block_num - U64::from(1))
-            .unwrap();
+        forked_db.reset(block_num - U64::from(1)).unwrap();
         let cleared_account = forked_db.inner().accounts();
         // test reset
         assert_eq!(cleared_account.read().is_empty(), true);

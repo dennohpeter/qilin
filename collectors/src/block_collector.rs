@@ -1,12 +1,11 @@
 use super::state_diff::{get_from_txs, StateDiffError};
+use crate::types::{BlockPayload, RwLockMap};
 use anyhow::Result;
 use artemis::types::{Collector, CollectorStream};
 use async_trait::async_trait;
-use dashmap::DashMap;
 use ethers::{
-    prelude::*,
     providers::{Middleware, PubsubClient},
-    types::{Block, BlockId, Transaction, H160, H256, U64},
+    types::{Block, BlockId, Transaction, H256, U64},
 };
 use log::{error, info};
 use parking_lot::RwLock;
@@ -17,10 +16,6 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::runtime::Runtime;
 use tokio_stream::StreamExt;
-use crate::types::{
-    RwLockMap,
-    BlockPayload,
-};
 
 type PoolVariant = cfmms::dex::DexVariant;
 
@@ -149,7 +144,6 @@ where
         Ok(())
     }
 }
-
 
 #[async_trait]
 impl<M> Collector<BlockPayload> for QilinBlockCollector<M>
