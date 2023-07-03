@@ -18,7 +18,6 @@ impl From<NewTx> for Event {
         Self::NewMempoolTx(tx)
     }
 }
-    
 
 /// Core Action implementation for the strategies
 #[derive(Debug, Clone)]

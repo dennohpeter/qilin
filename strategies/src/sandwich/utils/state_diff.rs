@@ -1,22 +1,19 @@
 // use crate::{prelude::Pool, utils};
+use dashmap::DashMap;
 use ethers::prelude::*;
+use fork_database::forked_db::ForkedDatabase;
+use futures::stream::FuturesUnordered;
 use log;
-use std::{
-    collections::{btree_map::Entry, BTreeMap},
-    sync::Arc,
-};
+use parking_lot::RwLock;
 use qilin_cfmms::pool::Pool;
-use dashmap::DashMap; 
-use futures::stream::FuturesUnordered; 
 use revm::{
     db::{CacheDB, EmptyDB},
     primitives::{AccountInfo, Bytecode},
 };
-use fork_database::{
-    forked_db::ForkedDatabase
+use std::{
+    collections::{btree_map::Entry, BTreeMap},
+    sync::Arc,
 };
-use parking_lot::RwLock;
-
 
 /// Holds pools that have the potential to be sandwiched
 #[derive(Clone, Copy, Debug)]
@@ -47,30 +44,30 @@ impl SandwichablePool {
 // Returns:
 // Some(BTreeMap<Address, AccountDiff>): State diffs for each address)
 // None: If encountered error or state diffs are non existant
-pub async fn get_from_txs(
-    client: &Arc<Provider<Ws>>,
+pub async fn get_from_txs<M>(
+    client: &Arc<M>,
     meats: &Vec<Transaction>,
     block_num: BlockNumber,
-) -> Option<BTreeMap<Address, AccountDiff>> {
+) -> Option<BTreeMap<Address, AccountDiff>>
+where
+    M: Middleware + 'static,
+{
+    // add statediff trace to each transaction
+    let req = meats
+        .iter()
+        .map(|tx| (tx, vec![TraceType::StateDiff]))
+        .collect();
 
-
-
-	// add statediff trace to each transaction
-	let req = meats
-		.iter()
-		.map(|tx| (tx, vec![TraceType::StateDiff]))
-		.collect();
-	
-	let block_traces = match client.trace_call_many(req, Some(block_num)).await {
-		Ok(x) => {
+    let block_traces = match client.trace_call_many(req, Some(block_num)).await {
+        Ok(x) => {
             log::info!("got block traces: {:?}", x);
             x
-        },
-		Err(_) => {
+        }
+        Err(_) => {
             log::error!("error getting block traces");
-			return None;
-		}
-	};
+            return None;
+        }
+    };
 
     let mut merged_state_diffs = BTreeMap::new();
 
@@ -120,7 +117,11 @@ pub fn extract_pools(
 
     // find direction of swap based on state diff (does weth have state changes?)
     let weth_state_diff = &state_diffs
-        .get(&"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse::<Address>().unwrap())?
+        .get(
+            &"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+                .parse::<Address>()
+                .unwrap(),
+        )?
         .storage;
 
     let mut sandwichable_pools: Vec<SandwichablePool> = vec![];
@@ -160,10 +161,11 @@ pub async fn to_cache_db<'a, M>(
     state: &'a BTreeMap<Address, AccountDiff>,
     block_num: Option<BlockId>,
     provider: &'a Arc<M>,
-    db: &'a Arc<RwLock<ForkedDatabase>>
-) -> Result<&'a Arc<RwLock<ForkedDatabase>>, ProviderError> 
+    db: &'a Arc<RwLock<ForkedDatabase>>,
+) -> Result<&'a Arc<RwLock<ForkedDatabase>>, ProviderError>
 where
-    M: Middleware + 'static, ProviderError: From<<M as Middleware>::Error>,
+    M: Middleware + 'static,
+    ProviderError: From<<M as Middleware>::Error>,
 {
     let mut write_cache_db = db.write();
     let cache_db = write_cache_db.database_mut();
@@ -185,13 +187,11 @@ where
             let balance = balance_provider.get_balance(addy, block_num).await?;
 
             let code = match code_provider.get_code(addy, block_num).await {
-                Ok(c) => {
-                    c
-                },
+                Ok(c) => c,
                 Err(_) => {
                     log::warn!("error getting code for address: {}", addy);
                     Bytes::new()
-                },
+                }
             };
 
             Ok::<(AccountDiff, Address, U256, U256, Bytes), ProviderError>((
@@ -209,10 +209,10 @@ where
     while let Some(result) = futures.next().await {
         match result {
             Ok((acc_diff, address, nonce, balance, code)) => {
-
-                let info = AccountInfo::new(balance.into(), nonce.as_u64(), Bytecode::new_raw(code.0));
+                let info =
+                    AccountInfo::new(balance.into(), nonce.as_u64(), Bytecode::new_raw(code.0));
                 cache_db.insert_account_info(address.0.into(), info);
-        
+
                 acc_diff.storage.iter().for_each(|(slot, storage_diff)| {
                     let slot_value: U256 = match storage_diff.to_owned() {
                         Diff::Changed(v) => v.from.0.into(),
@@ -233,7 +233,6 @@ where
             }
         }
     }
-    drop(write_cache_db);
 
     Ok(db)
 }

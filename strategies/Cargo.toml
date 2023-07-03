@@ -31,4 +31,5 @@ fork_database = { path = "../fork-database" }
 collectors = { path = "../collectors" }
 uniswap_v3_math = "0.4.0"
 hex = "0.4.3"
+env_logger = "0.10.0"
 
