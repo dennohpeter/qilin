@@ -85,3 +85,157 @@ pub fn get_tokens_in_from_tokens_out(
         },
     }
 }
+
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+    use dotenv::dotenv;
+    use std::env;
+    use log;
+
+    use eyre::Result;
+    use env_logger;
+    use env_logger::Env;
+    use ethers::{
+        core::utils::{Anvil, AnvilInstance},
+        prelude::LocalWallet,
+        middleware::SignerMiddleware,
+        providers::{Middleware, Provider, Http},
+        types::{H160, U64, U256, transaction::eip2718::TypedTransaction, NameOrAddress, Eip1559TransactionRequest},
+        utils::parse_units,
+        signers::Signer,
+    };
+    use alloy_sol_types::{
+        sol,
+        SolCall,
+    };
+    use alloy_primitives::{Address, U256 as alloy_U256};
+
+    use qilin_cfmms::bindings::{
+        uniswap_v2_router_1::uniswap_v_2_router_1_contract,
+        weth::weth_contract,
+    };
+
+    sol! {
+        function getAmountsOut(uint amountIn, address[] memory path) public view returns (uint[] memory amounts);
+        function getAmountsIn(uint amountOut, address[] memory path) public view returns (uint[] memory amounts);
+    }
+
+
+    async fn setup() -> Result<(Arc<Provider<Http>>, AnvilInstance)> {
+
+        env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
+        dotenv().ok();
+        let mainnet_http_url = env::var("HTTP_RPC").unwrap_or_else(|e| {
+            log::error!("Error: {}", e);
+            return e.to_string();
+        });
+
+        let temp_provider = Provider::<Http>::try_from(mainnet_http_url.clone()).unwrap();
+        let latest_block = temp_provider.get_block_number().await.unwrap();
+        drop(temp_provider);
+
+        let port = 8545u16;
+        let url = format!("http://localhost:{}", port).to_string();
+
+        // setup anvil instance for testing
+        // note: spawn() will panic if spawn is called without anvil being available in the user’s $PATH
+        let anvil = Anvil::new()
+            .port(port)
+            .fork(mainnet_http_url.clone())
+            .fork_block_number(latest_block.as_u64())
+            .spawn();
+
+        let provider = Arc::new(
+            Provider::<Http>::try_from(url.clone())
+                .ok()
+                .ok_or(eyre::eyre!("Error connecting to anvil instance"))?,
+        );
+        log::info!("Connected to anvil instance at {}", url);
+
+        Ok((provider, anvil))
+    }
+
+
+    #[tokio::test]
+    async fn test_v2_swap() -> Result<()> {
+        let (anvil_provider, _anvil) = setup().await.unwrap();
+        let wallet =
+            "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+                .parse::<LocalWallet>()?;
+        let client = Arc::new(SignerMiddleware::new(anvil_provider.clone(), wallet));
+
+        // create an instance of WETH smart contract fomr binding
+        let weth_instance = weth_contract::weth::new(
+            "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse::<H160>()?,
+            client.clone(),
+        );
+
+        let value: U256 = U256::from(parse_units("500.0", "ether").unwrap());
+        let address = client.address();
+
+        // deposit 500 ETH to get WETH
+        let _ = weth_instance
+            .deposit()
+            .value(value)
+            .send()
+            .await?
+            .await?
+            .expect("deposit failed");
+        log::info!("WETH deposited to {}", address);
+
+        let weth_balance = weth_instance.balance_of(address).call().await?;
+        assert_eq!(weth_balance, value);
+
+        let _ = weth_instance
+            .approve("0xf164fC0Ec4E93095b804a4795bBe1e041497b92a".parse::<H160>()?, U256::MAX)
+            .send()
+            .await?
+            .await?;
+
+        let path = vec![
+            // WETH address
+            Address::parse_checksummed("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", None).unwrap(),
+            // USDC address
+            Address::parse_checksummed("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", None).unwrap(),
+        ];
+        
+        let v2_router_get_amount_out = getAmountsOutCall {
+            amountIn: alloy_U256::from(1),
+            path: path,
+        };
+
+        let call_data = v2_router_get_amount_out.encode();
+        let nonce = client.get_transaction_count(address.clone(), None).await?;
+
+        let tx_req = Eip1559TransactionRequest {
+            to: Some(NameOrAddress::Address("0xf164fC0Ec4E93095b804a4795bBe1e041497b92a".parse::<H160>()?)),
+            from: Some(address),
+            data: Some(call_data.into()),
+            chain_id: Some(U64::from(1)),
+            max_fee_per_gas: Some(U256::from(1000000000000u64)),
+            max_priority_fee_per_gas: Some(U256::from(1000000000000u64)),
+            gas: Some(U256::from(1000000u64)),
+            nonce: Some(nonce),
+            value: None,
+            access_list: Default::default(),
+        };
+
+        let tx_req = TypedTransaction::Eip1559(tx_req);
+        
+        let signed_tx = client.signer().sign_transaction(&tx_req).await?;
+        let raw_tx = tx_req.rlp_signed(&signed_tx);
+
+        let receipt = client.send_raw_transaction(raw_tx).await?.log_msg("Transaction broadcasted, pending confirmation").await?;
+        log::info!("Block Confirmation: {:?}", receipt);
+
+        Ok(())
+
+    }
+
+
+}
+

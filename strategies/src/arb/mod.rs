@@ -34,6 +34,7 @@ struct ArbPool {
 }
 
 impl ArbPool {
+    #[allow(dead_code)]
     fn new(
         borrowing_pool_reserve_0: f64,
         borrowing_pool_reserve_1: f64,
@@ -80,12 +81,13 @@ impl ArbPool {
     }
 
     /// Called by arb function to calculate the optimal trade size
+    #[allow(dead_code)]
     pub async fn calc_optimal_arb(
         provider: Arc<Provider<Ws>>,
         borrowing_pool: &Pool,
         repay_pool: &Pool,
         borrow_0_buy_1: bool,
-    ) -> f64 {
+    ) -> (f64, f64) {
         let mut cost: ArbPool;
         match borrowing_pool.pool_type {
             PoolType::UniswapV3(uni_v3_pool) => {
@@ -206,7 +208,12 @@ impl ArbPool {
             .run()
             .unwrap();
 
-        res.state().best_param.unwrap()
+        (
+            res.state().best_param.unwrap(),
+            res.state().best_cost
+        )
+
+
     }
 }
 
@@ -367,7 +374,10 @@ fn maximize_arb_profit(
         },
     };
 
-    return -(_debt - _repay);
+    log::info!("Borrow Amount: {}", borrow_amt);
+    log::info!("FlashLoan Amount: {}", _debt);
+    log::info!("Repaying Amount: {}", _repay);
+    return -(_debt + _repay);
 }
 
 #[allow(dead_code)]
@@ -468,7 +478,7 @@ mod test {
         .await
         .unwrap();
 
-        let amt = ArbPool::calc_optimal_arb(provider.clone(), &v2_pool, &v3_pool, true).await;
+        let (amt, max_profit) = ArbPool::calc_optimal_arb(provider.clone(), &v2_pool, &v3_pool, true).await;
 
         let mut token0_reserve: u128 = 0;
         match v3_pool.pool_type {
@@ -477,7 +487,9 @@ mod test {
             }
             _ => {}
         }
-        log::info!("Optimal Borrowing Amount: {}", amt as u128);
+
+        log::info!("Optimal Borrowing Amount: {}", amt);
+        log::info!("Max Profit: {}", -max_profit);
         log::info!("Token0 Reserve: {}", token0_reserve);
 
         assert!(amt < token0_reserve as f64 * 0.005);

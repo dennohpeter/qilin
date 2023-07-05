@@ -32,4 +32,6 @@ collectors = { path = "../collectors" }
 uniswap_v3_math = "0.4.0"
 hex = "0.4.3"
 env_logger = "0.10.0"
+alloy-sol-types = "0.2.0"
+alloy-primitives = "0.2.0"
 
