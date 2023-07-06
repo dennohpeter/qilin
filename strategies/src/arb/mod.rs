@@ -375,18 +375,6 @@ fn maximize_arb_profit(
     return -(_debt + _repay);
 }
 
-pub(crate) fn u128_2_f64(value: u128) -> f64 {
-    if value <= u128::from(u64::MAX) {
-        value as f64
-    } else {
-        log::warn!(
-            "u128 value {} is too large to fit into f64, result might be inaccurate",
-            value
-        );
-        value as f64
-    }
-}
-
 #[allow(dead_code)]
 pub(crate) fn u256_2_f64(value: U256) -> f64 {
     value.as_u128() as f64

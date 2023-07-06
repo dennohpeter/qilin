@@ -1,4 +1,4 @@
-use crate::arb::{f64_2_u256, u128_2_f64, u256_2_f64};
+use crate::arb::u256_2_f64;
 use cfmms::pool::uniswap_v2::UniswapV2Pool;
 use ethers::providers::{Provider, Ws};
 use ethers::types::U256;
@@ -99,10 +99,7 @@ mod test {
     use log;
     use std::env;
 
-    use crate::arb::{
-        f64_2_u256, u256_2_f64,
-        v2::swap::{get_tokens_in_from_tokens_out, get_tokens_out_from_tokens_in},
-    };
+    use crate::arb::v2::swap::{get_tokens_in_from_tokens_out, get_tokens_out_from_tokens_in};
     use alloy_primitives::{Address, U256 as alloy_U256};
     use alloy_sol_types::{sol, SolCall};
     use env_logger;
