@@ -208,12 +208,7 @@ impl ArbPool {
             .run()
             .unwrap();
 
-        (
-            res.state().best_param.unwrap(),
-            res.state().best_cost
-        )
-
-
+        (res.state().best_param.unwrap(), res.state().best_cost)
     }
 }
 
@@ -380,31 +375,26 @@ fn maximize_arb_profit(
     return -(_debt + _repay);
 }
 
+pub(crate) fn u128_2_f64(value: u128) -> f64 {
+    if value <= u128::from(u64::MAX) {
+        value as f64
+    } else {
+        log::warn!(
+            "u128 value {} is too large to fit into f64, result might be inaccurate",
+            value
+        );
+        value as f64
+    }
+}
+
 #[allow(dead_code)]
 pub(crate) fn u256_2_f64(value: U256) -> f64 {
-    let integer_part_high = (value >> 64).as_u64();
-    let integer_part_low = (value & U256::from(u64::MAX)).as_u64();
-
-    let integer_part = (integer_part_high as u128) << 64 | integer_part_low as u128;
-    let decimal_part = (value & U256::from(u64::MAX)).as_u128() as f64 / u128::MAX as f64;
-
-    let result = integer_part as f64 + decimal_part;
-    result
+    value.as_u128() as f64
 }
 
 #[allow(dead_code)]
 pub(crate) fn f64_2_u256(value: f64) -> U256 {
-    let decimal_part = value.fract();
-    let integer_part = value - decimal_part;
-
-    let decimal_part_u128 = (decimal_part * u128::MAX as f64) as u128;
-    let integer_part_u128 = integer_part as u128;
-
-    let integer_part_high = (integer_part_u128 >> 64) as u64;
-    let integer_part_low = (integer_part_u128 & u64::MAX as u128) as u64;
-
-    let result = U256::from(integer_part_high) << 64 | U256::from(integer_part_low);
-    result | U256::from(decimal_part_u128)
+    U256::from(value as u128)
 }
 
 #[allow(dead_code)]
@@ -478,7 +468,8 @@ mod test {
         .await
         .unwrap();
 
-        let (amt, max_profit) = ArbPool::calc_optimal_arb(provider.clone(), &v2_pool, &v3_pool, true).await;
+        let (amt, max_profit) =
+            ArbPool::calc_optimal_arb(provider.clone(), &v2_pool, &v3_pool, true).await;
 
         let mut token0_reserve: u128 = 0;
         match v3_pool.pool_type {
